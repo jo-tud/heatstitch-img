@@ -158,6 +158,29 @@ describe('digitize', () => {
     roundTrips(pattern);
   });
 
+  it('fills along the structure of the image', () => {
+    // A red rectangle with fine horizontal shading: the rows run horizontally (0° or 180°).
+    const shade = (y: number): Rgba => [210 + 15 * Math.sin(y * 4), 30, 40, 255];
+    const flat = { maxColors: 2 };
+    const { objects } = design(40, (x, y) => (x > 5 && x < 35 && y > 10 && y < 30 ? shade(y) : null), flat);
+    const fill = objects.find((o) => o.kind === 'fill')!;
+    expect(Math.abs(Math.sin(((fill.angle ?? 90) * Math.PI) / 180))).toBeLessThan(0.15);
+    // The same with vertical shading: vertical rows.
+    const v = design(40, (x, y) => (x > 5 && x < 35 && y > 10 && y < 30 ? shade(x) : null), flat).objects.find((o) => o.kind === 'fill')!;
+    expect(Math.abs(Math.cos(((v.angle ?? 0) * Math.PI) / 180))).toBeLessThan(0.15);
+  });
+
+  it('curves the rows of a wide arc along its shape', () => {
+    // A half ring 12 mm wide: too wide for satin, filled with rows that follow the arc.
+    const { pattern, objects } = design(60, (x, y) => {
+      const d = Math.hypot(x - 30, y - 45);
+      return d > 14 && d < 26 && y < 45 ? BLUE : null;
+    });
+    expect(objects.map((o) => [o.kind, o.curved])).toEqual([['fill', true]]);
+    expect(noCritical(pattern)).toEqual([]);
+    roundTrips(pattern);
+  });
+
   it('is deterministic', () => {
     const make = () => design(30, (x, y) => (Math.hypot(x - 15, y - 15) < 10 ? RED : null)).pattern;
     const a = make();

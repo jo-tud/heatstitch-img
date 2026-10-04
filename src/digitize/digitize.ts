@@ -3,6 +3,8 @@ import { NONE, type Prepared } from '../image/prepare';
 import { COLOR_CHANGE, END, JUMP, PatternBuilder, STITCH, TRIM, type Pattern, type ThreadColor } from '../model/pattern';
 import { fabricOf, recommendedSpacing, type Profile } from '../validation/profiles';
 import { fillRegion } from './fill';
+import { flowFill } from './flow';
+import { coverage, peakDensity } from './measure';
 import { buildRegion, type Region } from './region';
 import { runStitch } from './run';
 import { column, pairs, satinStitches, underlay, type Column, type SatinParams } from './satin';
@@ -34,6 +36,8 @@ export interface DigitizeOptions {
   stitch: number;
   /** Fill angle in degrees, or null to choose per region. */
   angle: number | null;
+  /** Without a fixed angle: fill rows follow the image's structure and the shape's direction. */
+  flow: boolean;
   /** Widest satin column (mm); wider regions are filled. */
   satinMax: number;
   /** Narrowest satin column (mm); narrower regions are sewn as running stitch. */
@@ -59,6 +63,7 @@ export function digitizeDefaults(profile: Profile): DigitizeOptions {
     satinSpacing: round2(spacing),
     stitch: 4,
     angle: null,
+    flow: true,
     satinMax: 7,
     satinMin: fabric.id === 'terry' ? 1.5 : 1,
     pull: PULL[fabric.id] ?? 0.2,
@@ -75,8 +80,10 @@ export interface DigitizedObject {
   /** Palette index. */
   label: number;
   areaMm2: number;
-  /** Fill angle (fills only). */
+  /** Fill angle (fills only; the mean direction for curved rows). */
   angle?: number;
+  /** Fill rows curve with the image's direction. */
+  curved?: boolean;
 }
 
 export interface Digitized {
@@ -230,74 +237,10 @@ function sewSatin(o: Obj, start: Pt, p: SatinParams, withUnderlay: boolean): Pt[
   return run.length ? [run] : [];
 }
 
-/**
- * Thread per area (mm/mm²) at the densest 1 mm cell of the runs. A satin column reaches about
- * 2 / spacing; where a tight bend fans its stitches or columns pile up, the generated satin is
- * measured instead of predicted.
- */
-function peakDensity(runs: Pt[][]): number {
-  const cells = new Map<number, number>();
-  for (const run of runs) {
-    for (let i = 1; i < run.length; i++) {
-      const [x0, y0] = run[i - 1];
-      const [x1, y1] = run[i];
-      const len = Math.hypot(x1 - x0, y1 - y0);
-      const n = Math.max(1, Math.ceil(len / 0.2));
-      for (let k = 0; k < n; k++) {
-        const x = x0 + ((x1 - x0) * (k + 0.5)) / n;
-        const y = y0 + ((y1 - y0) * (k + 0.5)) / n;
-        const key = Math.floor(x) * 100003 + Math.floor(y);
-        cells.set(key, (cells.get(key) ?? 0) + len / n);
-      }
-    }
-  }
-  let max = 0;
-  for (const v of cells.values()) max = Math.max(max, v);
-  return max;
-}
-
 /** Satin denser than this many times its nominal density somewhere is filled instead. */
 const SATIN_PEAK = 2.4;
 /** Satin that leaves more of its region bare than this share is filled instead. */
 const SATIN_COVER = 0.95;
-
-/**
- * Share of the region's pixels within 0.2 mm of a stitch. That closes the gaps of a satin column
- * (its stitches lie at most one spacing apart), not those between columns fanning out from a
- * junction, which a triangle or a blot would get.
- */
-function coverage(r: Region, runs: Pt[][]): number {
-  const hit = new Uint8Array(r.mask.length);
-  const rad = Math.max(1, Math.round(0.2 / r.pxMm));
-  const step = r.pxMm / 2;
-  for (const run of runs) {
-    for (let i = 1; i < run.length; i++) {
-      const [x0, y0] = run[i - 1];
-      const [x1, y1] = run[i];
-      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step));
-      for (let k = 0; k <= n; k++) {
-        const cx = Math.floor((x0 + ((x1 - x0) * k) / n) / r.pxMm) - r.x0;
-        const cy = Math.floor((y0 + ((y1 - y0) * k) / n) / r.pxMm) - r.y0;
-        for (let dy = -rad; dy <= rad; dy++) {
-          const y = cy + dy;
-          if (y < 0 || y >= r.h) continue;
-          for (let dx = -rad; dx <= rad; dx++) {
-            const x = cx + dx;
-            if (x >= 0 && x < r.w) hit[y * r.w + x] = 1;
-          }
-        }
-      }
-    }
-  }
-  let inside = 0;
-  let covered = 0;
-  for (let i = 0; i < r.mask.length; i++) {
-    if (!r.mask[i]) continue;
-    inside++;
-    covered += hit[i];
-  }
-  return inside ? covered / inside : 1;
-}
 
 function sewRun(o: Obj, start: Pt): Pt[][] {
   const line = (b: Branch, fa: boolean, fb: boolean) => runStitch(column(o.region, b, fa, fb).center, 2);
@@ -365,10 +308,13 @@ export function digitize(prep: Prepared, o: DigitizeOptions, name = 'image'): Di
       if (obj.info.kind === 'fill') {
         // Fill angles of touching regions sewn already, so neighbours differ.
         const near = angles.filter((a) => touches(a.obj.region, obj.region)).map((a) => a.angle);
-        const res = fillRegion(obj.region, { spacing: o.spacing, stitch: o.stitch, angle: o.angle, pull: o.pull, underlay: o.underlay }, pos, near);
+        const fp = { spacing: o.spacing, stitch: o.stitch, angle: o.angle, pull: o.pull, underlay: o.underlay };
+        const flow = o.flow && o.angle === null && prep.orient ? flowFill(obj.region, obj.graph, prep.orient, fp, pos) : null;
+        const res = flow ?? fillRegion(obj.region, fp, pos, near);
         if (res) {
           out = res.runs;
           obj.info.angle = res.angle;
+          if (flow?.curved) obj.info.curved = true;
           angles.push({ obj, angle: res.angle });
         } else if (obj.graph?.branches.length) {
           obj.info.kind = 'run';

@@ -261,6 +261,23 @@ liegt auf einer Höhenlinie innerhalb.
   Reihen um 90° gedreht, dreifacher Abstand, 0,4 mm innerhalb der Kante. Zwischen Abschnitten läuft der
   Faden auf dem kürzesten Weg innen unter noch nicht gestickten Reihen (wie Ink/Stitchs Underpath); läge
   er dabei mehr als 2 mm auf schon gestickten Reihen, springt er stattdessen.
+- **Füllrichtung folgt dem Bild** (Standard, `src/digitize/flow.ts`, `src/image/orientation.ts`): Ein
+  Richtungsfeld aus dem Strukturtensor des Originalbilds (Förstner & Gülch 1987, Bigün & Granlund 1987;
+  wie bei kohärenzverstärkender Abstraktion, Weickert 1999, und Coherent Line Drawing, Kang u. a.
+  2007), gewichtet mit der Kohärenz, also der Eindeutigkeit der Richtung: Fell, Haare und Striche
+  geben die Richtung vor. Der eigene Umriss einer Fläche zählt nicht (erst ab 1,2 mm innen). In
+  einfarbigen Flächen gibt die Mittellinie die Richtung, sofern die Form gestreckt ist (ab drei Breiten
+  Länge voll). Ist die Richtung in einer Fläche fast einheitlich, werden die Reihen gerade in genau
+  dieser Richtung gelegt; sonst gebogen als gleichmäßig verteilte Stromlinien des Felds (Jobard &
+  Lefer 1997): Jede Reihe folgt dem Feld, neue Reihen beginnen einen Reihenabstand neben bestehenden,
+  eine Reihe endet, wo sie einer anderen näher als einen halben Abstand kommt. Reihen werden hin und
+  her verbunden, Abstände zwischen Gruppen wie bei der geraden Füllung überbrückt. Bevor gestickt wird,
+  werden die Reihen gemessen; wo sie sich häufen (über das 2,2-fache der Solldichte) oder Lücken
+  lassen, wird gerade gefüllt. Eine Recherche fand kein Stickprogramm, das die Stichrichtung
+  automatisch aus der Struktur des Bildes ableitet (einige richten Füllungen an der Längsachse einer
+  Form aus); der Forschungsprototyp von Liu u. a. (Eurographics 2023) braucht von Hand vorgegebene
+  Richtungen. Im Feld *Füllrichtung* lässt sie sich gegen gerade Reihen oder einen
+  festen Winkel tauschen.
 - **Satin:** Die Kanten werden von der Mittellinie aus senkrecht bis zum Rand gemessen (die
   „Stroke-Normalen“ des Goldman-Patents). Abstand 0,4 mm zwischen Einstichen derselben Seite, gemessen an
   der Seite, die weiter vorrückt; auf der Innenseite von Kurven rückt jeder zu nahe Einstich (unter
@@ -276,6 +293,15 @@ liegt auf einer Höhenlinie innerhalb.
   (Webware 40 wt 0,40 mm zwischen benachbarten Reihen, wie in der Beispielkatze gemessen), Zugausgleich
   nach Stoff (Wilcom-Tabelle). Im Panel *Stiche* lässt sich alles überschreiben.
 
+### Bild mit KI vorbereiten
+
+heatstitch baut keine KI ein. Unter dem Bildfeld schlägt *Bild mit KI vorbereiten* stattdessen einen
+Ablauf vor: das Bild im eigenen KI-Chat hochladen, der Bilder bearbeiten kann, einen fertigen Prompt
+einfügen, das Ergebnis hier laden. Der Prompt richtet sich nach Breite und Farbanzahl unter
+*Vorbereitung*: flache Grafik mit höchstens so vielen Farben, keine Verläufe und Texturen, nichts
+schmaler als 1 mm im Stick (als Anteil der Bildbreite), weißer Hintergrund. Ein Hinweis sagt, dass das
+Bild dabei an den Anbieter der KI geht.
+
 ### Lebendiges Garn
 
 In der realistischen Fadenansicht folgt das Licht dem Mauszeiger oder der Neigung des Handys
@@ -290,9 +316,9 @@ Die Einstellung *Licht folgt Maus und Neigung* unter *Anzeige* gilt in allen Mod
 
 Die erzeugten Stiche laufen durch dieselbe Prüfung wie geladene Dateien. *Als Stickdatei übernehmen*
 legt sie als PES in die Dateiliste. Zum Vergleich auf Webware mit 40 wt: Das Foto einer Katze (80 × 107 mm,
-5 Farben, 62 Objekte) ergibt 16 Vorsicht- und 3 kritische Zonen und 131 Fadenschnitte bei 16 400 Stichen,
-die professionell digitalisierte Beispielkatze 15 und 2 Zonen (höchstens 9,9 mm/mm²) und 89 Schnitte bei
-9 200 Stichen. Die Befunde liegen meist
+5 Farben, 62 Objekte, 18 der 32 Füllungen gebogen) ergibt 10 Vorsicht- und 3 kritische Zonen und 157
+Fadenschnitte bei 17 800 Stichen (mit geraden Reihen 16 und 3 Zonen), die professionell digitalisierte
+Beispielkatze 15 und 2 Zonen (höchstens 9,9 mm/mm²) und 89 Schnitte bei 9 200 Stichen. Die Befunde liegen meist
 dort, wo Satin den Rand einer Füllung überlappt; die Korrektur im Modus Dichte kann sie danach angehen.
 
 **Grenzen:** Fotos werden flächig (posterisiert) gestickt, nicht schattiert wie bei Photo-Stitch-

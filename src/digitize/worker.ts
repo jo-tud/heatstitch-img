@@ -37,8 +37,10 @@ ctx.onmessage = (e: MessageEvent<ImageRequest>) => {
     } else if (req.type === 'prepare') {
       if (!preparer) throw new Error('No image loaded');
       prepared = preparer.run(req.options, req.edits, req.strokes);
-      // A copy goes to the page; the worker keeps its own for the stitches.
-      const copy = { ...prepared, labels: prepared.labels.slice() };
+      // A copy goes to the page (without the direction field, which only the stitches need); the
+      // worker keeps its own for the stitches.
+      const { orient: _, ...rest } = prepared;
+      const copy = { ...rest, labels: prepared.labels.slice() };
       ctx.postMessage({ id: req.id, prepared: copy } satisfies ImageResponse, [copy.labels.buffer]);
     } else {
       if (!prepared) throw new Error('No prepared image');

@@ -3,6 +3,7 @@ import { pecThreads } from '../parsers/pecPalette';
 import { deltaE2000, labToRgb, rgbToLab, type Lab, type Rgb } from './color';
 import { bilateral } from './filters';
 import { mergeSmall, modeFilter, removeBackground, removeSeams } from './labels';
+import { orientation, type Orientation } from './orientation';
 import { NONE, quantize, type Quantized } from './quantize';
 import { resizeArea, toLab, type LabImage, type Raster } from './raster';
 
@@ -84,6 +85,8 @@ export interface Prepared {
   /** Palette index per pixel, NONE where nothing is sewn. */
   labels: Uint8Array;
   palette: PaletteEntry[];
+  /** Direction of the image's own structure (fur, strands, strokes), for the stitch direction. */
+  orient?: Orientation;
 }
 
 /** Working resolution: 0.1 mm per pixel, coarser for designs over 120 mm so the image stays near 1200 px. */
@@ -171,7 +174,7 @@ function paint(labels: Uint8Array, w: number, h: number, strokes: Stroke[], labe
 
 /** Keeps the expensive stages of the last run and recomputes only what a change needs. */
 export class Preparer {
-  private smoothed: { key: string; img: LabImage; pxMm: number } | null = null;
+  private smoothed: { key: string; img: LabImage; pxMm: number; orient: Orientation } | null = null;
   private quantized: { key: string; q: Quantized } | null = null;
 
   constructor(private source: Raster) {}
@@ -186,16 +189,19 @@ export class Preparer {
     const smoothKey = `${w}x${h}:${o.smooth}`;
     if (this.smoothed?.key !== smoothKey) {
       let img = toLab(resizeArea(src, w, h));
+      // The direction of fur and strands comes from the image before smoothing flattens them,
+      // integrated over about 1 mm.
+      const orient = orientation(img, 1 / pxMm);
       // 0.4 mm spatial sigma: texture finer than the thread is flattened, edges stay.
       if (o.smooth > 0) img = bilateral(img, Math.round(o.smooth), Math.max(1, 0.4 / pxMm), 8);
-      this.smoothed = { key: smoothKey, img, pxMm };
+      this.smoothed = { key: smoothKey, img, pxMm, orient };
       this.quantized = null;
     }
     const img = this.smoothed.img;
     const qKey = `${o.maxColors}`;
     if (this.quantized?.key !== qKey) this.quantized = { key: qKey, q: quantize(img, { maxColors: o.maxColors }) };
     const { centers, labels: raw } = this.quantized.q;
-    return finish(img, pxMm, centers, raw, o, edits, strokes);
+    return { ...finish(img, pxMm, centers, raw, o, edits, strokes), orient: this.smoothed.orient };
   }
 }
 

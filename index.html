@@ -117,6 +117,20 @@
           </label>
           <button type="button" id="image-example" class="link" data-i18n="image.example"></button>
           <p class="muted small" id="image-info"></p>
+          <details class="ai-prep" data-section="aiPrep">
+            <summary data-i18n="image.ai.title"></summary>
+            <p class="small" data-i18n="image.ai.intro"></p>
+            <ol class="small">
+              <li data-i18n="image.ai.step1"></li>
+              <li data-i18n="image.ai.step2"></li>
+              <li data-i18n="image.ai.step3"></li>
+            </ol>
+            <textarea id="image-ai-prompt" class="ai-prompt" rows="9" readonly data-i18n-aria="image.ai.prompt"></textarea>
+            <div class="buttons">
+              <button type="button" id="image-ai-copy" data-i18n="image.ai.copy"></button>
+            </div>
+            <p class="muted small" data-i18n="image.ai.note"></p>
+          </details>
         </section>
 
         <section class="panel" data-mode="image">

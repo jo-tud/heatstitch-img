@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { deltaE2000, labToRgb, rgbToLab, type Lab } from '../src/image/color';
 import { distanceInside } from '../src/image/edt';
 import { looksLikePhoto } from '../src/image/filters';
+import { orientation } from '../src/image/orientation';
 import { components, mergeSmall, removeBackground } from '../src/image/labels';
 import { DEFAULT_PREPARE, NONE, Preparer, type Stroke } from '../src/image/prepare';
 import { quantize } from '../src/image/quantize';
@@ -44,6 +45,20 @@ describe('distance transform', () => {
     expect(d[0]).toBeCloseTo(1);
     mask[4 * w + 4] = 0;
     expect(distanceInside(mask, w, w)[4 * w + 7]).toBeCloseTo(2);
+  });
+});
+
+describe('orientation', () => {
+  it('finds the direction along stripes', () => {
+    // Vertical stripes: the structure runs up and down, 2θ = 180°, so cos 2θ is near -1.
+    const img = toLab(raster(60, 60, (x) => (Math.sin(x / 2) > 0 ? RED : BLUE)));
+    const o = orientation(img, 4);
+    const i = 30 * 60 + 30;
+    expect(o.c[i]).toBeLessThan(-0.9);
+    expect(Math.abs(o.s[i])).toBeLessThan(0.2);
+    // Diagonal stripes from top left to bottom right (y down): θ = 45°, sin 2θ near 1.
+    const d = orientation(toLab(raster(60, 60, (x, y) => (Math.sin((x - y) / 2) > 0 ? RED : BLUE))), 4);
+    expect(d.s[i]).toBeGreaterThan(0.9);
   });
 });
 

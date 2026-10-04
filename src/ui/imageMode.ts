@@ -156,8 +156,11 @@ export class ImageMode {
     check('image-underlay', (v) => (s.stitch.underlay = v), 'stitches');
     const angle = $<HTMLSelectElement>('image-angle');
     angle.addEventListener('change', () => {
-      if (angle.value === 'auto') delete s.stitch.angle;
-      else s.stitch.angle = Number(angle.value);
+      // Following the image is the default; "straight" switches it off, a number fixes the angle.
+      delete s.stitch.angle;
+      delete s.stitch.flow;
+      if (angle.value === 'auto') s.stitch.flow = false;
+      else if (angle.value !== 'flow') s.stitch.angle = Number(angle.value);
       this.changed('stitches');
     });
     $('image-stitch-reset').addEventListener('click', () => {
@@ -189,6 +192,19 @@ export class ImageMode {
     $('image-strokes-clear').addEventListener('click', () => {
       if (!this.work.strokes.length) return;
       this.commit({ ...this.work, strokes: [] });
+    });
+    const copy = $<HTMLButtonElement>('image-ai-copy');
+    copy.addEventListener('click', async () => {
+      const text = $<HTMLTextAreaElement>('image-ai-prompt');
+      try {
+        await navigator.clipboard.writeText(text.value);
+        copy.textContent = t('image.ai.copied');
+      } catch {
+        // No clipboard access: the text is selected, so Ctrl+C copies it.
+        text.select();
+        copy.textContent = t('image.ai.select');
+      }
+      setTimeout(() => (copy.textContent = t('image.ai.copy')), 2500);
     });
     $('image-take').addEventListener('click', async () => {
       const p = this.result?.pattern;
@@ -548,10 +564,11 @@ export class ImageMode {
     $<HTMLInputElement>('image-underlay').checked = o.underlay;
     const angle = $<HTMLSelectElement>('image-angle');
     if (!angle.options.length) {
-      angle.append(new Option('', 'auto'), ...ANGLES.map((a) => new Option(`${a}°`, String(a))));
+      angle.append(new Option('', 'flow'), new Option('', 'auto'), ...ANGLES.map((a) => new Option(`${a}°`, String(a))));
     }
-    angle.options[0].text = t('image.angle.auto');
-    angle.value = o.angle === null ? 'auto' : String(o.angle);
+    angle.options[0].text = t('image.angle.flow');
+    angle.options[1].text = t('image.angle.auto');
+    angle.value = o.angle !== null ? String(o.angle) : o.flow ? 'flow' : 'auto';
     $('image-stitch-reset').hidden = !Object.keys(s.stitch).length;
     $('image-material').textContent = t('image.material', { fabric: fabricLabel(this.h.settings.profile), thread: threadLabel(this.h.settings.profile) });
     document.querySelectorAll<HTMLInputElement>('input[name="image-view"]').forEach((el) => (el.checked = el.value === s.view));
@@ -559,6 +576,13 @@ export class ImageMode {
     out('image-brush-out', `${formatNumber(s.brushMm, 1)} mm`);
     $<HTMLButtonElement>('image-strokes-undo').disabled = !this.undoStack.length;
     $<HTMLButtonElement>('image-strokes-clear').disabled = !this.work.strokes.length;
+    // The prompt for preparing the image with one's own AI, with this design's size and colors:
+    // 1 mm in the embroidery as a share of the image width is the smallest detail worth keeping.
+    $<HTMLTextAreaElement>('image-ai-prompt').value = t('image.ai.text', {
+      w: formatNumber(s.prepare.widthMm, 0),
+      n: s.prepare.maxColors,
+      d: formatNumber(Math.max(0.2, 100 / s.prepare.widthMm), 1),
+    });
     $('image-brush-hint').textContent = t(this.tool === 'none' ? 'image.brush.hint' : this.tool === 'paint' ? 'image.brush.paint' : 'image.brush.erase');
 
     const info = $('image-info');
@@ -661,6 +685,7 @@ export class ImageMode {
       ['stats.size', `${formatNumber(st.widthMm, 1)} × ${formatNumber(st.heightMm, 1)} mm`],
       ['image.result.colors', formatNumber(d.pattern.colors.length)],
       ['image.result.objects', t('image.result.kinds', { fill: count('fill'), satin: count('satin'), run: count('run') })],
+      ...(d.objects.some((o) => o.curved) ? [['image.result.curved', formatNumber(d.objects.filter((o) => o.curved).length)] as [Key, string]] : []),
       ['stats.trims', formatNumber(st.trims)],
       ['image.result.time', t('image.result.minutes', { m: formatNumber(sewingSeconds(st.stitches, st.trims, st.colorChanges, this.h.settings.machineSpm) / 60, 0) })],
     ];

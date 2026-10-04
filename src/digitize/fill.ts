@@ -48,7 +48,7 @@ type Section = Seg[];
 const STAGGERS = 4;
 const UNDERLAY_STITCH = 3;
 const UNDERLAY_INSET = 0.4;
-const TRAVEL_STITCH = 2.5;
+export const TRAVEL_STITCH = 2.5;
 /** Travel may run on top of sewn rows for this long (mm); a longer way becomes a jump. */
 const SEWN_CROSSING = 2;
 const RAD = Math.PI / 180;
@@ -186,7 +186,7 @@ function entries(f: Frame, s: Section, spacing: number, pull: number): { reverse
 }
 
 /** Grid over the region for travel paths: passable cells and cells covered by sewn rows. */
-class TravelGrid {
+export class TravelGrid {
   cell: number;
   gw: number;
   gh: number;
@@ -442,7 +442,7 @@ function sewAll(
   return pos;
 }
 
-function pathLength(p: Pt[]): number {
+export function pathLength(p: Pt[]): number {
   let l = 0;
   for (let i = 1; i < p.length; i++) l += dist(p[i - 1], p[i]);
   return l;
@@ -456,14 +456,20 @@ export function fillRegion(r: Region, p: FillParams, start: Pt, neighbours: numb
   if (!top.length) return null;
   const runs: Pt[][] = [];
   const grid = new TravelGrid(r);
-  let pos = start;
-  if (p.underlay) {
-    const uf = new Frame(angle + 90);
-    const us = Math.max(1.2, 3 * p.spacing);
-    const under = rows(r, r.sdf, uf, us, UNDERLAY_INSET);
-    if (under.length) pos = sewAll(uf, sections(r, r.sdf, uf, under, us), us, UNDERLAY_STITCH, 0, pos, grid, false, runs);
-    grid.covered.fill(0);
-  }
+  const pos = p.underlay ? sewUnderlay(r, angle + 90, p.spacing, start, grid, runs) : start;
   sewAll(f, sections(r, r.sdf, f, top, p.spacing), p.spacing, p.stitch, p.pull, pos, grid, true, runs);
   return { runs, angle };
+}
+
+/**
+ * Underlay rows at `angle`, three times the top spacing apart (at least 1.2 mm), inset from the
+ * edge; appended to `runs`. Returns where the needle ends.
+ */
+export function sewUnderlay(r: Region, angle: number, spacing: number, start: Pt, grid: TravelGrid, runs: Pt[][]): Pt {
+  const uf = new Frame(angle);
+  const us = Math.max(1.2, 3 * spacing);
+  const under = rows(r, r.sdf, uf, us, UNDERLAY_INSET);
+  const pos = under.length ? sewAll(uf, sections(r, r.sdf, uf, under, us), us, UNDERLAY_STITCH, 0, start, grid, false, runs) : start;
+  grid.covered.fill(0);
+  return pos;
 }

@@ -168,6 +168,7 @@ function normalizeImage(i: Partial<ImageSettings> | undefined): ImageSettings {
     if (typeof st[k] === 'number' && Number.isFinite(st[k]) && (st[k] as number) >= 0) stitch[k] = st[k] as number;
   }
   if (typeof st.underlay === 'boolean') stitch.underlay = st.underlay;
+  if (typeof st.flow === 'boolean') stitch.flow = st.flow;
   if (typeof st.angle === 'number' && Number.isFinite(st.angle)) stitch.angle = st.angle;
   return {
     prepare: {

@@ -1414,6 +1414,32 @@ body[data-mode='image'] .stage.painting canvas#canvas {
   color: #c23a3a;
 }
 
+.ai-prep {
+  margin-top: 4px;
+}
+
+.ai-prep summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.ai-prep ol {
+  margin: 4px 0;
+  padding-left: 18px;
+}
+
+.ai-prompt {
+  width: 100%;
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
