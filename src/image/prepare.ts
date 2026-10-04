@@ -56,7 +56,10 @@ export interface Stroke {
   points: [number, number][];
   /** Brush radius as a share of the image width. */
   radius: number;
-  /** Paint color; null erases (not sewn). */
+  /**
+   * Color painted with, as the `source` of a palette entry (so a later thread change of that color
+   * applies to the painted pixels too); null erases (not sewn).
+   */
   color: Rgb | null;
 }
 
@@ -105,7 +108,6 @@ export function nearestThread(lab: Lab): { thread: ThreadColor; deltaE: number }
 }
 
 const sameRgb = (a: Rgb, b: Rgb) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
-const rgbOf = (t: ThreadColor): Rgb => [t.r, t.g, t.b];
 
 /** Index of the entry whose source color matches `c` (within a small CIEDE2000 tolerance). */
 function findSource(palette: { source: Rgb }[], c: Rgb, tolerance = 8): number {
@@ -127,20 +129,28 @@ function findSource(palette: { source: Rgb }[], c: Rgb, tolerance = 8): number {
   return best;
 }
 
-/** Paints the strokes into the label map; colors not in the palette are added to it. */
-function paint(labels: Uint8Array, w: number, h: number, palette: PaletteEntry[], strokes: Stroke[]): void {
-  for (const s of strokes) {
-    let label = NONE;
-    if (s.color) {
-      const lab = rgbToLab(...s.color);
-      label = palette.findIndex((p) => deltaE2000(p.lab, lab) < 2);
-      if (label < 0) {
-        if (palette.length >= NONE) continue;
-        const thread: ThreadColor = { r: s.color[0], g: s.color[1], b: s.color[2] };
-        palette.push({ thread, lab, source: s.color, deltaE: 0, areaMm2: 0, sew: true });
-        label = palette.length - 1;
-      }
-    }
+/**
+ * Palette entry each stroke paints with: the entry with the stroke's color as its source, else a new
+ * entry (thread matched like the clusters). NONE for erasing.
+ */
+function strokeLabels(palette: PaletteEntry[], strokes: Stroke[], threads: boolean): number[] {
+  return strokes.map((s) => {
+    if (!s.color) return NONE;
+    const i = findSource(palette, s.color, 3);
+    if (i >= 0) return i;
+    if (palette.length >= NONE) return NONE;
+    const lab = rgbToLab(...s.color);
+    const near = threads ? nearestThread(lab) : null;
+    const thread: ThreadColor = near?.thread ?? { r: s.color[0], g: s.color[1], b: s.color[2] };
+    palette.push({ thread, lab: rgbToLab(thread.r, thread.g, thread.b), source: s.color, deltaE: near?.deltaE ?? 0, areaMm2: 0, sew: true });
+    return palette.length - 1;
+  });
+}
+
+/** Paints the strokes into the label map, each with its label. */
+function paint(labels: Uint8Array, w: number, h: number, strokes: Stroke[], labelOf: number[]): void {
+  strokes.forEach((s, si) => {
+    const label = labelOf[si];
     const r = s.radius * w;
     const r2 = r * r;
     const stamp = (cx: number, cy: number) => {
@@ -156,7 +166,7 @@ function paint(labels: Uint8Array, w: number, h: number, palette: PaletteEntry[]
       const steps = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / Math.max(0.5, r / 2)));
       for (let k = i > 0 ? 1 : 0; k <= steps; k++) stamp(x0 + ((x1 - x0) * k) / steps, y0 + ((y1 - y0) * k) / steps);
     }
-  }
+  });
 }
 
 /** Keeps the expensive stages of the last run and recomputes only what a change needs. */
@@ -220,6 +230,9 @@ function finish(
     palette.push(entry);
   });
 
+  // Painted colors join the palette before the color changes, so those apply to them as well.
+  const painted = strokeLabels(palette, strokes, o.threads);
+
   // The user's color changes: another thread, merging, skipping.
   const merged = new Uint8Array(256).fill(NONE);
   for (const e of edits) {
@@ -245,7 +258,8 @@ function finish(
   for (let i = 0; i < raw.length; i++) labels[i] = raw[i] === NONE ? NONE : resolve(map[raw[i]]);
 
   // Painted strokes count before the cleanup (so regions form around them) and after it (so they win).
-  paint(labels, w, h, palette, strokes);
+  const paintLabels = painted.map((l) => (l === NONE ? NONE : resolve(l)));
+  paint(labels, w, h, strokes, paintLabels);
   labels = modeFilter(labels, w, h);
   const labOf = (k: number) => (k === NONE ? null : palette[k].lab);
   // Seams of anti-aliasing: at most 0.5 mm wide, colored between their two neighbours.
@@ -258,7 +272,7 @@ function finish(
   if (o.background) labels = removeBackground(labels, w, h);
   labels = mergeSmall(labels, w, h, Math.max(1, o.minAreaMm2 / (pxMm * pxMm)));
   labels = modeFilter(labels, w, h);
-  if (strokes.length) paint(labels, w, h, palette, strokes);
+  if (strokes.length) paint(labels, w, h, strokes, paintLabels);
 
   // Areas, then the colors that are not sewn.
   const counts = new Array(palette.length).fill(0);
@@ -287,4 +301,4 @@ function distanceToSegment(p: Lab, a: Lab, b: Lab): number {
   return Math.hypot(ap[0] - t * ab[0], ap[1] - t * ab[1], ap[2] - t * ab[2]);
 }
 
-export { NONE, rgbOf };
+export { NONE };

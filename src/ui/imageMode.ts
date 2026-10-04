@@ -93,6 +93,8 @@ export class ImageMode {
   private error = '';
   /** Counts loaded images, so results for an earlier one are dropped. */
   private generation = 0;
+  /** Counts calls of `load`: only the image chosen last is kept when decoding overlaps. */
+  private loads = 0;
   private needPrepare = false;
   private needStitches = false;
   private running = false;
@@ -215,18 +217,23 @@ export class ImageMode {
 
   /** The image of the last session, with its changes. */
   async restore(): Promise<void> {
+    const before = this.loads;
     const stored = await loadImage();
-    if (!stored || this.source) return;
+    // An image opened meanwhile wins over the stored one.
+    if (!stored || this.loads !== before) return;
     const { image, work } = stored;
     await this.load(new File([image.data], image.name, { type: image.type }), work);
   }
 
   /** Opens an image; `work` restores stored changes (and keeps the stored settings). */
   async load(file: File, work?: Work): Promise<void> {
+    const token = ++this.loads;
     let canvas: HTMLCanvasElement;
     try {
       canvas = await decode(file);
+      if (token !== this.loads) return;
     } catch (err) {
+      if (token !== this.loads) return;
       this.error = t('image.error.load', { msg: err instanceof Error ? err.message : String(err) });
       this.render();
       return;
@@ -407,7 +414,7 @@ export class ImageMode {
     if (!p) return;
     const [W] = this.sizeMm();
     const entry = p.palette[this.brushColor];
-    const color = this.tool === 'erase' || !entry ? null : rgbOf(entry.thread);
+    const color = this.tool === 'erase' || !entry ? null : entry.source;
     this.stroke = { points: [this.toImage(x, y)], radius: this.h.settings.image.brushMm / 2 / W, color };
     this.preview();
   }
@@ -417,6 +424,14 @@ export class ImageMode {
     if (!this.stroke) return;
     this.stroke.points.push(this.toImage(x, y));
     this.preview();
+  }
+
+  /** Drops the stroke being painted (a second finger, a cancelled touch). */
+  paintCancel(): void {
+    if (!this.stroke) return;
+    this.stroke = null;
+    if (this.prepared) this.preparedImg = labelsToCanvas(this.prepared);
+    this.h.redraw();
   }
 
   paintUp(): void {
@@ -433,7 +448,8 @@ export class ImageMode {
     if (!s || !img) return;
     const c = img.getContext('2d')!;
     c.save();
-    if (s.color) c.strokeStyle = c.fillStyle = `rgb(${s.color.join(',')})`;
+    const entry = s.color && this.prepared?.palette[this.brushColor];
+    if (s.color) c.strokeStyle = c.fillStyle = entry ? cssColor(entry.thread) : `rgb(${s.color.join(',')})`;
     else c.globalCompositeOperation = 'destination-out';
     c.lineCap = c.lineJoin = 'round';
     c.lineWidth = s.radius * 2 * img.width;

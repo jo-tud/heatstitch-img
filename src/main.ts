@@ -965,8 +965,8 @@ const pointers = new Map<number, [number, number]>();
 let pinchDist = 0;
 /** Where a one-finger or mouse press started, to tell a click from a drag. */
 let pressAt: [number, number] | null = null;
-/** A brush stroke is being painted in the Bild mode. */
-let painting = false;
+/** Pointer painting a brush stroke in the Bild mode, or null. */
+let painting: number | null = null;
 
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
@@ -975,9 +975,14 @@ canvas.addEventListener('pointerdown', (e) => {
   pressAt = pointers.size === 1 ? pos : null;
   let mode: 'move' | 'band' | 'pan' = 'pan';
   if (settings.mode === 'image' && imageMode.painting && pointers.size === 1 && e.button === 0) {
-    painting = true;
+    painting = e.pointerId;
     imageMode.paintDown(...vp.toWorld(pos[0], pos[1]));
     return;
+  }
+  // A second finger while painting means zooming: the stroke is dropped.
+  if (painting !== null) {
+    painting = null;
+    imageMode.paintCancel();
   }
   if (pointers.size === 1 && e.button === 0 && nearDivider(pos[0])) {
     splitDrag = true;
@@ -1002,7 +1007,7 @@ canvas.addEventListener('pointermove', (e) => {
   const prev = pointers.get(e.pointerId);
   const [wx, wy] = vp.toWorld(pos[0], pos[1]);
   if (settings.mode === 'image') {
-    if (painting) {
+    if (painting === e.pointerId) {
       imageMode.paintMove(wx, wy);
       return;
     }
@@ -1033,10 +1038,11 @@ canvas.addEventListener('pointermove', (e) => {
 
 const endPointer = (e: PointerEvent) => {
   const pos = local(e);
-  if (painting) {
-    painting = false;
+  if (painting === e.pointerId) {
+    painting = null;
     pointers.delete(e.pointerId);
-    imageMode.paintUp();
+    if (e.type === 'pointerup') imageMode.paintUp();
+    else imageMode.paintCancel();
     return;
   }
   if (pressAt && e.type === 'pointerup' && settings.mode === 'flow' && Math.hypot(pos[0] - pressAt[0], pos[1] - pressAt[1]) < 4) {

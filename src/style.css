@@ -1406,7 +1406,7 @@ details.panel.section[open] > summary {
   display: none;
 }
 
-.stage.painting canvas#canvas {
+body[data-mode='image'] .stage.painting canvas#canvas {
   cursor: none;
 }
 

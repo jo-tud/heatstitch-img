@@ -3,7 +3,7 @@ import { deltaE2000, labToRgb, rgbToLab, type Lab } from '../src/image/color';
 import { distanceInside } from '../src/image/edt';
 import { looksLikePhoto } from '../src/image/filters';
 import { components, mergeSmall, removeBackground } from '../src/image/labels';
-import { DEFAULT_PREPARE, NONE, Preparer } from '../src/image/prepare';
+import { DEFAULT_PREPARE, NONE, Preparer, type Stroke } from '../src/image/prepare';
 import { quantize } from '../src/image/quantize';
 import { toLab } from '../src/image/raster';
 import { BLACK, BLUE, RED, WHITE, YELLOW, raster, rng, shape, type Rgba } from './helpers/images';
@@ -136,8 +136,22 @@ describe('prepare', () => {
     expect(skipped.palette.some((e) => !e.sew)).toBe(true);
     // A blue stroke across the middle adds a color.
     const painted = prep.run(opts, [], [{ points: [[0.3, 0.5], [0.7, 0.5]], radius: 0.05, color: [BLUE[0], BLUE[1], BLUE[2]] }]);
-    const blue = painted.palette.find((e) => e.thread.b === BLUE[2] && e.thread.r === BLUE[0]);
+    const blue = painted.palette.find((e) => e.source[0] === BLUE[0] && e.source[2] === BLUE[2]);
     expect(blue?.areaMm2).toBeGreaterThan(20);
     expect(painted.labels[(painted.height >> 1) * painted.width + (painted.width >> 1)]).toBe(painted.palette.indexOf(blue!));
+  });
+
+  it('keeps painted pixels with their color when its thread changes', () => {
+    const img = shape(200, 200, (x, y) => (x < 100 ? RED : y < 100 ? BLUE : null), WHITE);
+    const prep = new Preparer(img);
+    const first = prep.run(opts);
+    const red = first.palette.find((e) => e.thread.r > 150)!;
+    // Paint red into the blue square, then give red another thread.
+    const stroke: Stroke = { points: [[0.75, 0.25]], radius: 0.1, color: red.source };
+    const other = { r: 120, g: 20, b: 60, name: 'Wine' };
+    const p = prep.run(opts, [{ from: red.source, thread: other }], [stroke]);
+    expect(p.palette.length).toBe(first.palette.length);
+    const at = p.labels[Math.round(p.height * 0.25) * p.width + Math.round(p.width * 0.75)];
+    expect(p.palette[at].thread).toEqual(other);
   });
 });
