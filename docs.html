@@ -44,11 +44,12 @@
       <article lang="en">
         <h1>How heatstitch works</h1>
         <p class="lead">
-          heatstitch opens machine embroidery files and has two modes. <b>Sequence</b> shows how the machine
+          heatstitch opens machine embroidery files, makes new ones from images, and has three modes. <b>Sequence</b> shows how the machine
           works through the design: colors, order, jumps and trims, stitch by stitch, and lets you decide which
           jumps get trimmed. <b>Density</b> shows how much thread lands on every square millimeter and tells you
           where a design is too dense for the fabric and thread you plan to use. You can fix those spots
-          automatically or by hand and save the result as DST or PES.
+          automatically or by hand and save the result as DST or PES. <b>Image</b> turns a picture or photo into
+          an embroidery file.
         </p>
 
         <nav class="toc" aria-label="Contents">
@@ -58,6 +59,7 @@
           <a href="#en-heatmap">Heatmap</a>
           <a href="#en-check">Check</a>
           <a href="#en-correct">Correction</a>
+          <a href="#en-image">Image</a>
           <a href="#en-save">Save and export</a>
           <a href="#en-keys">Shortcuts</a>
           <a href="#en-limits">Limits</a>
@@ -228,6 +230,34 @@
           <figcaption>Compare view with realistic threads: the stitches look the same, the table shows what changed.</figcaption>
         </figure>
 
+        <h2 id="en-image">Image mode</h2>
+        <p>
+          <i>Image</i> (<kbd>3</kbd>) makes an embroidery file from any picture: PNG, JPG, WebP or SVG, logos as
+          well as photos. Drop the image on the window or use <i>Load example image</i>. It goes through two
+          steps, and the canvas shows each of them: <i>Original</i>, <i>Prepared</i> (the image as it will be
+          sewn) and <i>Stitches</i>.
+        </p>
+        <figure>
+          <img src="/guide/image-en.jpg" width="1280" height="800" loading="lazy" alt="The example flower in the Image mode: fill, satin and running stitches over the prepared image, colors and result on the right" />
+          <figcaption>The example image as stitches: fills with underlay, satin for the ring and the stem, running stitch for the leaf veins. On the right the thread colors, the brush and the result with the check for the material.</figcaption>
+        </figure>
+        <dl>
+          <dt>Preparation</dt>
+          <dd>The image is reduced to a few thread colors (<i>Most colors</i>): similar colors are merged, small but distinct ones such as eyes are kept. <i>Simplify</i> smooths photos into flat regions while keeping their edges; it is switched on by itself for photos. Regions smaller than <i>Smallest area</i> join their neighbour, thin seams of anti-aliasing disappear, and the background at the image border is left out. With <i>Brother thread colors</i> every color becomes the nearest thread of the palette.</dd>
+          <dt>Colors and brush</dt>
+          <dd>In the color list a check box leaves a color out, the swatch picks another thread and <i>→</i> merges it into another color. A ≠ warns that no thread is close to the image color. Click a color and paint with the <i>Brush</i> to recolor regions by hand, or erase where nothing should be sewn. Every change can be undone; the image and your changes stay after a reload.</dd>
+          <dt>Stitches</dt>
+          <dd>Every region gets the stitch that suits its shape: wide regions a tatami fill with underlay, narrow strokes up to <i>Satin up to width</i> satin columns, lines under 1 mm a running stitch. Spacing and pull compensation follow the material chosen under <i>Material</i>. Colors are sewn largest first, objects that touch overlap by 0.2 mm, long jumps are trimmed with tie stitches.</dd>
+          <dt>Fill direction</dt>
+          <dd>With <i>Follows the image</i> the fill rows run like the fur, hair or strokes in the picture, and along the shape in flat regions. Where the direction changes across a region, the rows curve; where it is the same everywhere, they stay straight in that direction. <i>Straight, automatic</i> or a fixed angle switch it off.</dd>
+          <dt>Prepare with AI</dt>
+          <dd>For photos, <i>Prepare the image with AI</i> under the image box suggests a way: upload the picture in your own AI chat that can edit images, paste the ready-made prompt (it follows the width and number of colors), and load the result here. heatstitch itself sends nothing anywhere.</dd>
+          <dt>Living thread</dt>
+          <dd>Real thread shines across its fibers. In the realistic view the light follows your pointer, or the tilt of your phone, so satin columns and fill rows light up and darken by their stitch direction, as when you turn a sewn patch in your hand. The first converted image is shown this way with the light going round once; <i>✦ As sewn</i> on the canvas brings it back. <i>Light follows pointer and tilt</i> under <i>Display</i> switches it off.</dd>
+          <dt>Result</dt>
+          <dd>Stitches, size, sewing time and the check for the material. <i>Take over as embroidery file</i> adds the design as a PES file to the file list, where you can look at it in the other modes, correct it and save it as DST or PES.</dd>
+        </dl>
+
         <h2 id="en-save">Save and export</h2>
         <ul>
           <li><b>Save: As DST / As PES</b> under the file list writes the current stitches and colors. <i>Back to the original</i> appears there once a file is changed. Edited files get the suffix <code>-corrected</code>. Objects and hoop settings from embroidery software are not kept.</li>
@@ -238,7 +268,7 @@
         <h2 id="en-keys">Shortcuts</h2>
         <table class="keys">
           <tbody>
-            <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Sequence / Density mode</td></tr>
+            <tr><td><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></td><td>Sequence / Density / Image mode</td></tr>
             <tr><td><kbd>Wheel</kbd> / pinch, drag</td><td>Zoom, pan</td></tr>
             <tr><td><kbd>f</kbd> or double-click</td><td>Fit to view</td></tr>
             <tr><td><kbd>↑</kbd> <kbd>↓</kbd> or <kbd>k</kbd> <kbd>j</kbd></td><td>Previous / next file</td></tr>
@@ -265,11 +295,12 @@
       <article lang="de">
         <h1>So funktioniert heatstitch</h1>
         <p class="lead">
-          heatstitch öffnet Stickdateien und hat zwei Modi. <b>Ablauf</b> zeigt, wie die Maschine das Motiv
+          heatstitch öffnet Stickdateien, macht neue aus Bildern und hat drei Modi. <b>Ablauf</b> zeigt, wie die Maschine das Motiv
           abarbeitet: Farben, Reihenfolge, Sprünge und Fadenschnitte, Stich für Stich, und lässt dich entscheiden,
           wo geschnitten wird. <b>Dichte</b> zeigt, wie viel Garn auf jedem Quadratmillimeter landet, und sagt
           dir, wo ein Motiv für deinen Stoff und dein Garn zu dicht ist. Diese Stellen kannst du automatisch
-          oder von Hand korrigieren und das Ergebnis als DST oder PES speichern.
+          oder von Hand korrigieren und das Ergebnis als DST oder PES speichern. <b>Bild</b> macht aus einem Bild
+          oder Foto eine Stickdatei.
         </p>
 
         <nav class="toc" aria-label="Inhalt">
@@ -279,6 +310,7 @@
           <a href="#de-heatmap">Heatmap</a>
           <a href="#de-check">Prüfung</a>
           <a href="#de-correct">Korrektur</a>
+          <a href="#de-image">Bild</a>
           <a href="#de-save">Speichern und Export</a>
           <a href="#de-keys">Tastenkürzel</a>
           <a href="#de-limits">Grenzen</a>
@@ -450,6 +482,34 @@
           <figcaption>Vergleich mit realistischen Fäden: Die Stiche sehen gleich aus, die Tabelle zeigt, was sich geändert hat.</figcaption>
         </figure>
 
+        <h2 id="de-image">Modus Bild</h2>
+        <p>
+          <i>Bild</i> (<kbd>3</kbd>) macht aus einem beliebigen Bild eine Stickdatei: PNG, JPG, WebP oder SVG,
+          Logos ebenso wie Fotos. Das Bild aufs Fenster ziehen oder <i>Beispielbild laden</i> drücken. Es geht
+          durch zwei Schritte, und die Leinwand zeigt jeden davon: <i>Original</i>, <i>Vorbereitet</i> (das Bild,
+          wie es gestickt wird) und <i>Stiche</i>.
+        </p>
+        <figure>
+          <img src="/guide/image-de.jpg" width="1280" height="800" loading="lazy" alt="Die Beispielblume im Modus Bild: Füll-, Satin- und Steppstiche über dem vorbereiteten Bild, rechts Farben und Ergebnis" />
+          <figcaption>Das Beispielbild als Stiche: Füllungen mit Unterlage, Satin für Ring und Stiel, Steppstich für die Blattadern. Rechts die Garnfarben, der Pinsel und das Ergebnis mit der Prüfung für das Material.</figcaption>
+        </figure>
+        <dl>
+          <dt>Vorbereitung</dt>
+          <dd>Das Bild wird auf wenige Garnfarben reduziert (<i>Höchstens Farben</i>): Ähnliche Farben werden zusammengelegt, kleine auffällige wie Augen bleiben. <i>Vereinfachen</i> glättet Fotos zu Flächen und erhält dabei die Kanten; bei Fotos schaltet es sich von selbst ein. Flächen unter <i>Kleinste Fläche</i> gehen in der Nachbarfläche auf, dünne Säume der Kantenglättung verschwinden, und der Hintergrund am Bildrand wird weggelassen. Mit <i>Brother-Garnfarben</i> wird jede Farbe zum nächstliegenden Garn der Palette.</dd>
+          <dt>Farben und Pinsel</dt>
+          <dd>In der Farbliste lässt das Häkchen eine Farbe weg, das Farbfeld wählt ein anderes Garn und <i>→</i> legt sie mit einer anderen Farbe zusammen. Ein ≠ warnt, dass kein Garn nah an der Bildfarbe liegt. Eine Farbe anklicken und mit dem <i>Pinsel</i> Flächen von Hand umfärben, oder radieren, wo nichts gestickt werden soll. Jede Änderung lässt sich rückgängig machen; Bild und Änderungen bleiben nach dem Neuladen erhalten.</dd>
+          <dt>Stiche</dt>
+          <dd>Jede Fläche bekommt den Stich, der zu ihrer Form passt: breite Flächen Tatami-Füllstich mit Unterlage, schmale Striche bis <i>Satin bis Breite</i> Satinsäulen, Linien unter 1 mm Steppstich. Abstand und Zugausgleich folgen dem unter <i>Material</i> gewählten Stoff und Garn. Gestickt wird die größte Farbe zuerst, aneinanderstoßende Objekte überlappen 0,2 mm, lange Sprünge werden mit Vernähstichen geschnitten.</dd>
+          <dt>Füllrichtung</dt>
+          <dd>Mit <i>Folgt dem Bild</i> laufen die Füllreihen wie Fell, Haare oder Striche im Bild, in einfarbigen Flächen entlang der Form. Wo sich die Richtung in einer Fläche ändert, biegen sich die Reihen; wo sie überall gleich ist, bleiben sie gerade in dieser Richtung. <i>Gerade, automatisch</i> oder ein fester Winkel schalten es ab.</dd>
+          <dt>Mit KI vorbereiten</dt>
+          <dd>Für Fotos schlägt <i>Bild mit KI vorbereiten</i> unter dem Bildfeld einen Weg vor: das Bild im eigenen KI-Chat hochladen, der Bilder bearbeiten kann, den fertigen Prompt einfügen (er richtet sich nach Breite und Farbanzahl) und das Ergebnis hier laden. heatstitch selbst schickt dabei nichts weg.</dd>
+          <dt>Lebendiges Garn</dt>
+          <dd>Echtes Garn glänzt quer zu seinen Fasern. In der realistischen Ansicht folgt das Licht dem Mauszeiger oder der Neigung des Handys, und Satinsäulen und Füllreihen leuchten je nach Stichrichtung auf oder werden dunkel, wie beim Drehen eines gestickten Aufnähers in der Hand. Das erste umgewandelte Bild erscheint so, und das Licht läuft einmal herum; <i>✦ Wie gestickt</i> auf der Leinwand holt es zurück. <i>Licht folgt Maus und Neigung</i> unter <i>Anzeige</i> schaltet es ab.</dd>
+          <dt>Ergebnis</dt>
+          <dd>Stiche, Größe, Nähzeit und die Prüfung für das Material. <i>Als Stickdatei übernehmen</i> legt das Motiv als PES-Datei in die Dateiliste. Dort lässt es sich in den anderen Modi ansehen, korrigieren und als DST oder PES speichern.</dd>
+        </dl>
+
         <h2 id="de-save">Speichern und Export</h2>
         <ul>
           <li><b>Speichern: Als DST / Als PES</b> unter der Dateiliste schreibt die aktuellen Stiche und Farben. <i>Zurück zum Original</i> erscheint dort, sobald eine Datei geändert ist. Geänderte Dateien bekommen den Zusatz <code>-corrected</code>. Objekte und Rahmeneinstellungen aus der Sticksoftware gehen verloren.</li>
@@ -460,7 +520,7 @@
         <h2 id="de-keys">Tastenkürzel</h2>
         <table class="keys">
           <tbody>
-            <tr><td><kbd>1</kbd> / <kbd>2</kbd></td><td>Modus Ablauf / Dichte</td></tr>
+            <tr><td><kbd>1</kbd> / <kbd>2</kbd> / <kbd>3</kbd></td><td>Modus Ablauf / Dichte / Bild</td></tr>
             <tr><td><kbd>Mausrad</kbd> / Pinch, Ziehen</td><td>Zoomen, verschieben</td></tr>
             <tr><td><kbd>f</kbd> oder Doppelklick</td><td>Einpassen</td></tr>
             <tr><td><kbd>↑</kbd> <kbd>↓</kbd> oder <kbd>k</kbd> <kbd>j</kbd></td><td>Vorherige / nächste Datei</td></tr>
