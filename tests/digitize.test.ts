@@ -109,6 +109,28 @@ describe('digitize', () => {
     roundTrips(pattern);
   });
 
+  it('fills a triangle, where satin columns would fan out from the middle', () => {
+    // Equilateral, 13 mm sides: narrow enough for satin, but its skeleton is a star.
+    const inside = (x: number, y: number) => {
+      const [ax, ay, bx, by, cx, cy] = [10, 26, 23, 26, 16.5, 14.74];
+      const s1 = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+      const s2 = (cx - bx) * (y - by) - (cy - by) * (x - bx);
+      const s3 = (ax - cx) * (y - cy) - (ay - cy) * (x - cx);
+      return (s1 <= 0 && s2 <= 0 && s3 <= 0) || (s1 >= 0 && s2 >= 0 && s3 >= 0);
+    };
+    const { objects } = design(33, (x, y) => (inside(x, y) ? RED : null));
+    expect(objects.map((o) => o.kind)).toEqual(['fill']);
+  });
+
+  it('does not pile up satin in a tight bend', () => {
+    // A hook 5 mm wide around a 1 mm hole: satin would fan out on the inside of the bend.
+    const { pattern } = design(30, (x, y) => {
+      const d = Math.hypot(x - 15, y - 15);
+      return (d > 1 && d < 6 && y < 15) || (Math.abs(x - 18.5) < 2.5 && y >= 15 && y < 25) || (Math.abs(x - 11.5) < 2.5 && y >= 15 && y < 20) ? BLACK : null;
+    });
+    expect(noCritical(pattern)).toEqual([]);
+  });
+
   it('sews thin lines as running stitch', () => {
     const { pattern, objects } = design(40, (x, y) => (Math.abs(y - 20) < 0.35 && x > 5 && x < 35 ? BLACK : null), { minAreaMm2: 1 });
     // Out and back along the line (the stitch kind detection reads the two passes as fill rows).

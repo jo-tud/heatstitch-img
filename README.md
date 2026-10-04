@@ -1,8 +1,9 @@
 # heatstitch
 
-Stickdateien ansehen, prüfen und korrigieren, komplett im Browser (kein Backend, keine Uploads).
+Stickdateien ansehen, prüfen und korrigieren, und aus Bildern neue machen, komplett im Browser (kein
+Backend, keine Uploads).
 
-Zwei Modi, oben umschaltbar (Tasten 1 und 2):
+Drei Modi, oben umschaltbar (Tasten 1, 2 und 3):
 
 - **Ablauf**: wie die Maschine die Datei abarbeitet. Farbblöcke als Ebenen (ausblenden, hervorheben),
   Stiche färben nach Garnfarbe, Reihenfolge, Stichart oder Stichlänge, Markierungen für Sprünge,
@@ -10,6 +11,9 @@ Zwei Modi, oben umschaltbar (Tasten 1 und 2):
   Liste der Sprünge, die sich einzeln oder nach Länge schneiden und vernähen oder ohne Schnitt
   mitziehen lassen.
 - **Dichte**: Heatmap, Prüfung für Stoff und Garn, Korrektur (alles unten Beschriebene).
+- **Bild**: aus einem beliebigen Bild oder Foto eine Stickdatei machen: Farben auf Garnfarben
+  reduzieren, mit Farbliste und Pinsel nachbessern, Füll-, Satin- und Steppstiche erzeugen, siehe
+  [Bild → Stickdatei](#bild--stickdatei).
 
 ## Funktionen
 
@@ -28,6 +32,7 @@ Zwei Modi, oben umschaltbar (Tasten 1 und 2):
 - PNG-Export der aktuellen Ansicht inkl. Legende
 - **Korrektur:** automatisch nach Digitalisier-Praxis (Füllung unter Kanten zurückziehen, Kurzstiche in Satinkurven, gleichmäßig neu verteilen, Fokus Fadendichte oder Lochdichte, praxisübliche Funde und quittierte Zonen bleiben unangetastet) und von Hand (Einstiche wählen, verschieben, löschen, Auswahl ausdünnen), mit Rückgängig/Wiederholen und Vergleichsansicht Original/korrigiert, siehe unten
 - **Speichern als DST oder PES** (eigene Writer, kein pyembroidery)
+- **Bild → Stickdatei:** PNG, JPG, WebP, SVG; Vorverarbeitung für Fotos, Garnfarben der Brother-Palette, Pinsel, Tatami-Füllung, Satinsäulen und Steppstich, ohne externe Bibliotheken
 - Deutsch / Englisch
 - PWA: installierbar, offline nutzbar, "Öffnen mit" für .dst/.pes
 - Kurzanleitung auf Deutsch und Englisch (`docs.html`, Link "Anleitung" oben rechts)
@@ -197,6 +202,90 @@ Rahmeneinstellungen des Originals gehen verloren.
   Konvertierungen auf Datensatz-Gleichheit. Die geschriebenen Dateien wurden außerdem mit
   pyembroidery 1.5.1 gegengelesen.
 
+## Bild → Stickdatei
+
+Der Modus *Bild* (Taste 3) macht aus einem Bild eine Stickdatei, in zwei Schritten, die beide in einem
+Web Worker laufen (`src/digitize/worker.ts`). Jede Änderung startet eine neue Rechnung; was während einer
+Rechnung geändert wird, wird danach mit den neuesten Einstellungen gerechnet. Bild, Farbänderungen und
+Pinselstriche bleiben im Browser gespeichert (IndexedDB, `src/storage/imageStore.ts`).
+
+Die Verfahren sind nach einer Recherche in Fachliteratur, Herstellerhandbüchern und den Quelltexten
+freier Stickprogramme gewählt. Ink/Stitch und PEmbroider stehen unter GPL; von dort sind nur die
+Verfahren übernommen und neu geschrieben, kein Code.
+
+### Vorbereitung (`src/image/`)
+
+1. **Arbeitsauflösung:** 0,1 mm pro Pixel (bei Motiven über 120 mm gröber, höchstens etwa 1200 Pixel),
+   Flächenmittel beim Verkleinern, Transparenz bleibt erhalten.
+2. **Vereinfachen** (nur Fotos, beim Laden automatisch erkannt: decken die 16 häufigsten Farben unter
+   85 % der Pixel ab, ist es ein Foto): bilateraler Filter in CIELAB (Tomasi & Manduchi 1998), getrennt
+   nach Zeilen und Spalten und mehrfach angewendet wie in Winnemöller u. a. 2006. Flächen werden glatt,
+   Kanten bleiben.
+3. **Farbreduktion:** gewichtetes k-Means auf einem Lab-Histogramm, das nach Celebi (*Improving the
+   performance of k-means for color quantization*, 2011) bei kleinen Farbzahlen am besten abschneidet
+   und kleine, deutliche Flächen (Augen) erhält, wo Median Cut und Wu sie verlieren. Jedes Pixel zählt
+   mehr, je stärker es sich von seiner Umgebung abhebt und je bunter es ist. Fast gleiche Farben
+   (CIEDE2000 unter 6) werden zusammengelegt, winzige unauffällige (unter 0,4 % der Fläche und keiner
+   Farbe ferner als 22) fallen weg.
+4. **Garnfarben:** nächstes Garn der Brother-Palette nach CIEDE2000 (Sharma, Wu & Dalal 2005, an deren
+   Prüfdaten getestet); Farben, die auf dasselbe Garn fallen, werden eins. Die Farbliste zeigt ≠, wenn
+   kein Garn nahe liegt (ΔE über 10).
+5. **Änderungen von Hand:** pro Farbe anderes Garn, zusammenlegen, weglassen; Pinselstriche (malen,
+   radieren) werden vor und nach dem Aufräumen eingetragen, so dass sie gelten.
+6. **Aufräumen:** 3×3-Mehrheitsfilter; Säume der Kantenglättung (höchstens 0,5 mm breit, Farbe zwischen
+   den beiden Nachbarn) gehen an die Nachbarn; der Hintergrund (die Farbe von mindestens 60 % des Rands
+   und drei Ecken) fällt weg, soweit er mit dem Rand verbunden ist; Flächen unter *Kleinste Fläche* gehen
+   in den Nachbarn mit der längsten gemeinsamen Grenze auf (wie im Goldman-Patent US 6,836,695 und bei
+   Wilcom).
+
+### Stiche (`src/digitize/`)
+
+Jede zusammenhängende Fläche wird ein Objekt. Statt Konturen nachzuzeichnen, arbeitet alles auf einem
+vorzeichenbehafteten Abstandsfeld pro Fläche (exakte Distanztransformation nach Felzenszwalb &
+Huttenlocher 2012, leicht geglättet): Seine Nulllinie liegt mittig zwischen Pixeln, also teilen sich
+Nachbarflächen dieselbe Grenze. Füllreihen enden dort, Satinkanten werden dort gefunden, die Unterlage
+liegt auf einer Höhenlinie innerhalb.
+
+- **Art:** Das Skelett (Ausdünnen in der Reihenfolge des Abstands, Seitenäste kürzer als 1,5 Radien
+  beschnitten) liefert die Breiten. Unter 1 mm (Frottee 1,5 mm): Steppstich. Bis *Satin bis Breite*
+  (7 mm), gleichmäßig breit (breiteste Stelle innerhalb drei Standardabweichungen, wie im
+  Goldman-Patent), lang gegenüber der Breite und mit wenigen Verzweigungen: Satin. Sonst Füllung.
+  Erzeugter Satin wird nachgemessen: Liegt irgendwo mehr als das 2,4-fache seiner Solldichte (enge
+  Kurven fächern auf) oder bleiben mehr als 5 % der Fläche frei (Säulen, die von einer Mitte
+  ausstrahlen), wird gefüllt.
+- **Füllung (Tatami):** Reihen auf einem Raster, das am Ursprung des Motivs ausgerichtet ist, Einstiche
+  versetzt um je ein Viertel der Stichlänge (4 mm) wie Ink/Stitch, so dass Nachbarflächen nahtlos
+  anschließen. Die Reihen werden in Abschnitte zerlegt, die sich in einem Zug hin und her sticken lassen
+  (Boustrophedon-Zerlegung, Choset 2000). Ohne festen Winkel nimmt jede Fläche von 16 Winkeln den mit
+  den wenigsten Abschnitten (Goldman-Patent), möglichst 30° anders als berührende Flächen. Unterlage:
+  Reihen um 90° gedreht, dreifacher Abstand, 0,4 mm innerhalb der Kante. Zwischen Abschnitten läuft der
+  Faden auf dem kürzesten Weg innen unter noch nicht gestickten Reihen (wie Ink/Stitchs Underpath), sonst
+  springt er.
+- **Satin:** Die Kanten werden von der Mittellinie aus senkrecht bis zum Rand gemessen (die
+  „Stroke-Normalen“ des Goldman-Patents). Abstand 0,4 mm zwischen Einstichen derselben Seite, gemessen an
+  der Seite, die weiter vorrückt; auf der Innenseite von Kurven rückt jeder zu nahe Einstich (unter
+  0,25 mm) 15 % der Breite nach innen, Zugausgleich nach Stoff (Webware 0,2 mm, Strick 0,35, Frottee 0,4
+  pro Seite), Stiche über 7 mm werden geteilt. Ein Netz aus Säulen wird in einem Zug gestickt: jeder Ast
+  hin als Unterlage (Mittelnaht, ab 4 mm Breite Zickzack) und zurück als Satin, wie Ink/Stitchs
+  Auto-Satin. An Knoten deckt die erste Säule ab, die anderen reichen 0,3 mm hinein.
+- **Reihenfolge:** Farben nach Fläche, die größte zuerst; in einer Farbe Füllungen vor Satin und Linien,
+  jeweils das nächste Objekt. Objekte, die früher gestickt werden, reichen 0,2 mm unter spätere
+  Nachbarn. Bis 1 mm Abstand ein Stich, bis 3 mm ein Sprung, darüber Vernähen (0, 0,5, 1, 0,5, 0 mm
+  entlang des Fadens), Schnitt, Sprung und Anfangsvernähen; ebenso bei Farbwechseln.
+- **Standardwerte** nach Material (`digitizeDefaults`): Abstand aus der Empfehlung des Profils
+  (Webware 40 wt 0,40 mm zwischen benachbarten Reihen, wie in der Beispielkatze gemessen), Zugausgleich
+  nach Stoff (Wilcom-Tabelle). Im Panel *Stiche* lässt sich alles überschreiben.
+
+Die erzeugten Stiche laufen durch dieselbe Prüfung wie geladene Dateien. *Als Stickdatei übernehmen*
+legt sie als PES in die Dateiliste. Zum Vergleich auf Webware mit 40 wt: Das Foto einer Katze (80 × 107 mm,
+5 Farben, 60 Objekte) ergibt 24 Vorsicht- und 4 kritische Zonen mit höchstens 11,4 mm/mm², die
+professionell digitalisierte Beispielkatze 15 und 2 mit höchstens 9,9 mm/mm². Die Befunde liegen meist
+dort, wo Satin den Rand einer Füllung überlappt; die Korrektur im Modus Dichte kann sie danach angehen.
+
+**Grenzen:** Fotos werden flächig (posterisiert) gestickt, nicht schattiert wie bei Photo-Stitch-
+Verfahren mit veränderlicher Dichte. Breite Formen mit schmalen Armen werden ganz gefüllt, nicht in
+Füllung und Satin zerlegt. Die Farbliste kennt nur die Brother-Palette.
+
 ## Entwicklung
 
 ```sh
@@ -213,7 +302,8 @@ dass die Summe des Rasters exakt der Gesamtgarnlänge bzw. Stichzahl entspricht.
 ## Beispieldateien
 
 `public/examples/` enthält echte Stickdateien zum Ausprobieren, z. B. `cat-60mm.pes` (Katze, 60 mm, PES v6).
-Der Knopf "Beispiel laden" unter dem Dateifeld lädt sie direkt in die App.
+Der Knopf "Beispiel laden" unter dem Dateifeld lädt sie direkt in die App. `image-example.svg` ist das
+Beispielbild des Modus Bild (Füllflächen, Satinbreiten, feine Linien).
 
 `public/examples/demos/` enthält kleine synthetische Demos für die Anleitung, jede mit einem Befund:
 `overlap.pes` (gestapelte Füllungen), `letters.pes` (Füllung unter Satin), `sun.dst` (Kurzstiche auf
@@ -246,9 +336,11 @@ src/density/   Dichteraster, Gauss-Blur, Web Worker
 src/validation/  Messung, Profile, Stufen, Satin-Erkennung, Kurzstich- und Perforationsregel, Zonen
 src/correct/   Automatische Korrektur: Rückzug unter Kanten, Satin-Kurzstiche, Neuverteilen, Ausdünnen, Einstiche trennen
 src/writers/   DST- und PES-Writer (PEC-Block, Vorschaubilder)
+src/image/     Bildvorbereitung: Farbräume, CIEDE2000, Filter, Farbreduktion, Distanztransformation, Aufräumen
+src/digitize/  Stiche aus Bildern: Abstandsfelder, Skelett, Füllung, Satin, Steppstich, Reihenfolge, Worker
 src/render/    Viewport, Farbskala, Heatmap, Stichplan, Legende, Ablauf-Darstellung (Färbung, Marker, Nadel)
 src/ui/        Dateiliste, Validierung, Korrektur-Panel, Stich-Editor, Controls, Statistik, Tooltip, Export,
-               Farben-Liste, Sprung-Liste, Player
+               Farben-Liste, Sprung-Liste, Player, Modus Bild, Garnfarben-Auswahl
 src/i18n/      Übersetzungen DE/EN
 public/examples/  Beispiel-Stickdateien (per Knopf ladbar)
 docs.html      Kurzanleitung DE/EN (src/docs.ts, src/docs.css)

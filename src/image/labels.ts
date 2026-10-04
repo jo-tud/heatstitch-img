@@ -210,30 +210,31 @@ export function removeSeams(
     const b = c.label[second[0]];
     if (!between(c.label[k], a, b)) continue;
     // Each pixel goes to whichever of the two sides is nearer: grow both into the seam.
-    const minX = c.minX[k];
-    const maxX = c.maxX[k];
-    const minY = c.minY[k];
-    const maxY = c.maxY[k];
-    let todo = true;
-    for (let guard = 0; todo && guard < 64; guard++) {
-      todo = false;
-      const next = out.slice();
-      for (let y = minY; y <= maxY; y++) {
-        for (let x = minX; x <= maxX; x++) {
-          const i = y * w + x;
-          if (c.comp[i] !== k || out[i] !== c.label[k]) continue;
-          let pick = -1;
-          for (const j of [i - 1, i + 1, i - w, i + w]) {
-            if (j < 0 || j >= out.length || (j === i - 1 && x === 0) || (j === i + 1 && x === w - 1)) continue;
-            if (c.comp[j] !== k && (out[j] === a || out[j] === b)) pick = out[j];
-            else if (c.comp[j] === k && out[j] !== c.label[k]) pick = out[j];
-            if (pick >= 0) break;
+    let todo: number[] = [];
+    for (let y = c.minY[k]; y <= c.maxY[k]; y++) {
+      for (let x = c.minX[k]; x <= c.maxX[k]; x++) if (c.comp[y * w + x] === k) todo.push(y * w + x);
+    }
+    const seam = c.label[k];
+    while (todo.length) {
+      const changes: number[] = [];
+      const rest: number[] = [];
+      for (const i of todo) {
+        const x = i % w;
+        let pick = -1;
+        for (const j of [x > 0 ? i - 1 : -1, x < w - 1 ? i + 1 : -1, i - w, i + w]) {
+          if (j < 0 || j >= out.length) continue;
+          const l = out[j];
+          if (c.comp[j] !== k ? l === a || l === b : l !== seam) {
+            pick = l;
+            break;
           }
-          if (pick >= 0) next[i] = pick;
-          else todo = true;
         }
+        if (pick >= 0) changes.push(i, pick);
+        else rest.push(i);
       }
-      out.set(next);
+      if (!changes.length) break;
+      for (let q = 0; q < changes.length; q += 2) out[changes[q]] = changes[q + 1];
+      todo = rest;
     }
   }
   return out;

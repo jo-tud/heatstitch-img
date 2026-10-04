@@ -279,6 +279,14 @@ export function skeleton(r: Region): Graph {
       changed = true;
     }
   }
+  // Thinning can run a line end out into one corner of the shape (a thin diagonal tail). Free ends
+  // lose their thin tail; the satin extends them along their direction to the edge again.
+  const degree = new Array(nodes.length).fill(0);
+  for (const b of branches) {
+    degree[b.a]++;
+    degree[b.b]++;
+  }
+  branches = branches.map((b) => (b.a === b.b ? b : trimTails(b, degree[b.a] === 1, degree[b.b] === 1)));
   // Smooth the centerlines and resample them evenly (0.1 mm).
   branches = branches.map((b) => {
     const closed = b.a === b.b;
@@ -286,6 +294,20 @@ export function skeleton(r: Region): Graph {
     return resample(sm, smooth1(b.r, 3), 0.1);
   }).map((x, k) => ({ ...branches[k], pts: x.pts, r: x.r }));
   return { nodes, branches };
+}
+
+/** Drops points at free ends where the branch is thinner than half its median width. */
+function trimTails(b: Branch, freeA: boolean, freeB: boolean): Branch {
+  const sorted = b.r.slice().sort((x, y) => x - y);
+  const limit = sorted[sorted.length >> 1] / 2;
+  // At most a third of the branch from each end.
+  const most = Math.floor(b.pts.length / 3);
+  let i = 0;
+  let j = b.pts.length - 1;
+  if (freeA) while (i < most && b.r[i] < limit) i++;
+  if (freeB) while (b.pts.length - 1 - j < most && b.r[j] < limit) j--;
+  if (j - i < 1) return b;
+  return { ...b, pts: b.pts.slice(i, j + 1), r: b.r.slice(i, j + 1) };
 }
 
 export function reverse(b: Branch): Branch {

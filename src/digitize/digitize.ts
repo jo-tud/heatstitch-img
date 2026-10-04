@@ -62,7 +62,7 @@ export function digitizeDefaults(profile: Profile): DigitizeOptions {
     satinMax: 7,
     satinMin: fabric.id === 'terry' ? 1.5 : 1,
     pull: PULL[fabric.id] ?? 0.2,
-    overlap: 0.3,
+    overlap: 0.2,
     underlay: true,
     trimMm: 3,
   };
@@ -99,18 +99,32 @@ function percentile(v: number[], q: number): number {
   return s[Math.min(s.length - 1, Math.floor(q * s.length))] ?? 0;
 }
 
-/** Fill, satin or running stitch, from the widths along the skeleton. */
+/**
+ * Fill, satin or running stitch, from the widths along the skeleton. Satin needs a stroke: no
+ * wider than the satin limit, of even width (the Goldman patent's test: the widest point within
+ * three standard deviations of the mean), long against its width, and with few branchings (at
+ * least four widths of centerline per junction). Blotches with several short arms are filled;
+ * as satin they would become stars of columns stacked in their middle.
+ */
 function classify(g: Graph, o: DigitizeOptions): Kind {
   const widths = g.branches.flatMap((b) => b.r.map((r) => 2 * r));
   if (!widths.length) return 'fill';
   const max = Math.max(...widths);
   if (max < o.satinMin) return 'run';
   const mean = widths.reduce((a, b) => a + b, 0) / widths.length;
+  const sd = Math.sqrt(widths.reduce((a, w) => a + (w - mean) ** 2, 0) / widths.length);
   let length = 0;
   for (const b of g.branches) for (let i = 1; i < b.pts.length; i++) length += dist(b.pts[i - 1], b.pts[i]);
-  const elongated = length / Math.max(mean, 1e-6) >= 2.5;
-  if (elongated && percentile(widths, 0.95) <= o.satinMax && max <= o.satinMax * 1.3) return 'satin';
-  return 'fill';
+  const degree = new Array(g.nodes.length).fill(0);
+  for (const b of g.branches) {
+    degree[b.a]++;
+    degree[b.b]++;
+  }
+  const junctions = degree.filter((d) => d >= 3).length;
+  const narrow = percentile(widths, 0.95) <= o.satinMax && max <= o.satinMax * 1.3;
+  const even = max <= mean + 3 * sd + 0.5;
+  const stroke = length >= 2.5 * mean && junctions * 4 * mean <= length;
+  return narrow && even && stroke ? 'satin' : 'fill';
 }
 
 /** Boundary pixels of the region (every few), to find the nearest object. */
@@ -187,8 +201,15 @@ function columns(r: Region): (b: Branch, freeFrom: boolean, freeTo: boolean) => 
   };
 }
 
+/** Satin columns overlap a junction they end at by this much once another column has covered it (mm). */
+const JOIN_OVERLAP = 0.3;
+
 function sewSatin(o: Obj, start: Pt, p: SatinParams, withUnderlay: boolean): Pt[][] {
   const col = columns(o.region);
+  const g = o.graph!;
+  // The first column to reach a junction covers it; the others stop at its edge.
+  const covered = new Set<number>();
+  const trim = (n: number) => (covered.has(n) ? Math.max(0, g.nodes[n].r - JOIN_OVERLAP) : 0);
   const run = walk(
     o.graph!,
     start,
@@ -200,10 +221,82 @@ function sewSatin(o: Obj, start: Pt, p: SatinParams, withUnderlay: boolean): Pt[
       // Back from the far end: the same column reversed.
       const c = col(b, fa, fb);
       const rev: Column = { center: c.center.slice().reverse(), left: c.right.slice().reverse(), right: c.left.slice().reverse(), width: c.width };
-      return satinStitches(pairs(rev, p), p);
+      const ends = { from: g.nodes[b.b].p, fromTrim: fb ? 0 : trim(b.b), to: g.nodes[b.a].p, toTrim: fa ? 0 : trim(b.a) };
+      if (!fb) covered.add(b.b);
+      if (!fa) covered.add(b.a);
+      return satinStitches(pairs(rev, p, ends), p);
     },
   );
   return run.length ? [run] : [];
+}
+
+/**
+ * Thread per area (mm/mm²) at the densest 1 mm cell of the runs. A satin column reaches about
+ * 2 / spacing; where a tight bend fans its stitches or columns pile up, the generated satin is
+ * measured instead of predicted.
+ */
+function peakDensity(runs: Pt[][]): number {
+  const cells = new Map<number, number>();
+  for (const run of runs) {
+    for (let i = 1; i < run.length; i++) {
+      const [x0, y0] = run[i - 1];
+      const [x1, y1] = run[i];
+      const len = Math.hypot(x1 - x0, y1 - y0);
+      const n = Math.max(1, Math.ceil(len / 0.2));
+      for (let k = 0; k < n; k++) {
+        const x = x0 + ((x1 - x0) * (k + 0.5)) / n;
+        const y = y0 + ((y1 - y0) * (k + 0.5)) / n;
+        const key = Math.floor(x) * 100003 + Math.floor(y);
+        cells.set(key, (cells.get(key) ?? 0) + len / n);
+      }
+    }
+  }
+  let max = 0;
+  for (const v of cells.values()) max = Math.max(max, v);
+  return max;
+}
+
+/** Satin denser than this many times its nominal density somewhere is filled instead. */
+const SATIN_PEAK = 2.4;
+/** Satin that leaves more of its region bare than this share is filled instead. */
+const SATIN_COVER = 0.95;
+
+/**
+ * Share of the region's pixels within 0.2 mm of a stitch. That closes the gaps of a satin column
+ * (its stitches lie at most one spacing apart), not those between columns fanning out from a
+ * junction, which a triangle or a blot would get.
+ */
+function coverage(r: Region, runs: Pt[][]): number {
+  const hit = new Uint8Array(r.mask.length);
+  const rad = Math.max(1, Math.round(0.2 / r.pxMm));
+  const step = r.pxMm / 2;
+  for (const run of runs) {
+    for (let i = 1; i < run.length; i++) {
+      const [x0, y0] = run[i - 1];
+      const [x1, y1] = run[i];
+      const n = Math.max(1, Math.ceil(Math.hypot(x1 - x0, y1 - y0) / step));
+      for (let k = 0; k <= n; k++) {
+        const cx = Math.floor((x0 + ((x1 - x0) * k) / n) / r.pxMm) - r.x0;
+        const cy = Math.floor((y0 + ((y1 - y0) * k) / n) / r.pxMm) - r.y0;
+        for (let dy = -rad; dy <= rad; dy++) {
+          const y = cy + dy;
+          if (y < 0 || y >= r.h) continue;
+          for (let dx = -rad; dx <= rad; dx++) {
+            const x = cx + dx;
+            if (x >= 0 && x < r.w) hit[y * r.w + x] = 1;
+          }
+        }
+      }
+    }
+  }
+  let inside = 0;
+  let covered = 0;
+  for (let i = 0; i < r.mask.length; i++) {
+    if (!r.mask[i]) continue;
+    inside++;
+    covered += hit[i];
+  }
+  return inside ? covered / inside : 1;
 }
 
 function sewRun(o: Obj, start: Pt): Pt[][] {
@@ -262,6 +355,13 @@ export function digitize(prep: Prepared, o: DigitizeOptions, name = 'image'): Di
       });
       const obj = todo.splice(bi, 1)[0];
       let out: Pt[][] = [];
+      if (obj.info.kind === 'satin') {
+        out = sewSatin(obj, pos, satin, o.underlay);
+        if (peakDensity(out) > (SATIN_PEAK * 2) / o.satinSpacing || coverage(obj.region, out) < SATIN_COVER) {
+          obj.info.kind = 'fill';
+          out = [];
+        }
+      }
       if (obj.info.kind === 'fill') {
         // Fill angles of touching regions sewn already, so neighbours differ.
         const near = angles.filter((a) => touches(a.obj.region, obj.region)).map((a) => a.angle);
@@ -274,7 +374,6 @@ export function digitize(prep: Prepared, o: DigitizeOptions, name = 'image'): Di
           obj.info.kind = 'run';
         }
       }
-      if (obj.info.kind === 'satin') out = sewSatin(obj, pos, satin, o.underlay);
       if (obj.info.kind === 'run' && obj.graph?.branches.length) out = sewRun(obj, pos);
       out = out.filter((r) => r.length > 1);
       if (!out.length) continue;

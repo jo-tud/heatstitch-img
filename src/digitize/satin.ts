@@ -53,14 +53,17 @@ function tangent(pts: Pt[], i: number): Pt {
   return norm(sub(b, a));
 }
 
-/** Extends the centerline past a free end until it leaves the region (the thinning stops short of tips). */
+/**
+ * Extends the centerline past a free end until it leaves the region: a medial axis stops about one
+ * radius short of a round end, and further short of a tapering tip.
+ */
 function extend(r: Region, pts: Pt[], radius: number, atStart: boolean): Pt[] {
   if (pts.length < 2) return [];
   const t = atStart ? tangent(pts, 0) : tangent(pts, pts.length - 1);
   const dir: Pt = atStart ? [-t[0], -t[1]] : t;
   const from = atStart ? pts[0] : pts[pts.length - 1];
   const out: Pt[] = [];
-  for (let s = 0.1; s <= radius + 0.5; s += 0.1) {
+  for (let s = 0.1; s <= 3 * radius + 1; s += 0.1) {
     const p: Pt = [from[0] + dir[0] * s, from[1] + dir[1] * s];
     if (sample(r, r.sdfBase, p[0], p[1]) > -0.05) break;
     out.push(p);
@@ -126,8 +129,16 @@ export function column(r: Region, br: Branch, freeA: boolean, freeB: boolean): C
   return { center, left, right, width: widths[widths.length >> 1] ?? 0 };
 }
 
+/** Junctions at the column's ends that other columns cover already: the column stops this far from them. */
+export interface ColumnEnds {
+  from: Pt;
+  fromTrim: number;
+  to: Pt;
+  toTrim: number;
+}
+
 /** Stitch pairs (left, right) along the column, in its direction. */
-export function pairs(c: Column, p: SatinParams): [Pt, Pt][] {
+export function pairs(c: Column, p: SatinParams, ends?: ColumnEnds): [Pt, Pt][] {
   const n = c.center.length;
   if (n < 2) return [];
   const out: [Pt, Pt][] = [];
@@ -135,6 +146,7 @@ export function pairs(c: Column, p: SatinParams): [Pt, Pt][] {
   for (let i = 0; i < n; i++) {
     const w = dist(c.left[i], c.right[i]);
     if (w < 0.3) continue;
+    if (ends && (dist(c.center[i], ends.from) < ends.fromTrim || dist(c.center[i], ends.to) < ends.toTrim)) continue;
     if (last >= 0) {
       const d = norm(sub(c.right[last], c.left[last]));
       const perp = (a: Pt, b: Pt) => Math.abs((b[0] - a[0]) * d[1] - (b[1] - a[1]) * d[0]);
