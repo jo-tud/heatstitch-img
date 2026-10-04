@@ -33,6 +33,8 @@ export interface ImageHooks {
   redraw: () => void;
   /** Fit the view to the image, after loading. */
   fit: () => void;
+  /** The first stitches of a newly opened image are there; `first` for the very first image. */
+  reveal: (first: boolean) => void;
   validate: (p: Pattern) => Promise<ValidationResult>;
   takeOver: (p: Pattern, name: string) => Promise<void>;
 }
@@ -95,6 +97,8 @@ export class ImageMode {
   private generation = 0;
   /** Counts calls of `load`: only the image chosen last is kept when decoding overlaps. */
   private loads = 0;
+  /** The next stitches are the first of a newly opened image. */
+  private revealPending = false;
   private needPrepare = false;
   private needStitches = false;
   private running = false;
@@ -240,6 +244,7 @@ export class ImageMode {
     }
     this.generation++;
     this.source = canvas;
+    this.revealPending = !work;
     this.name = file.name.replace(/\.[^.]+$/, '') || 'image';
     this.work = work ?? { edits: [], strokes: [] };
     this.undoStack = [];
@@ -330,6 +335,13 @@ export class ImageMode {
         this.error = '';
         this.render();
         this.h.redraw();
+        if (this.revealPending) {
+          this.revealPending = false;
+          const first = !this.h.settings.image.introDone;
+          this.h.settings.image.introDone = true;
+          this.h.save();
+          this.h.reveal(first);
+        }
         const v = await this.h.validate(d.pattern);
         if (this.result !== d) continue;
         this.validation = v;
@@ -634,6 +646,7 @@ export class ImageMode {
     const take = $<HTMLButtonElement>('image-take');
     const d = this.result;
     take.disabled = !d || !!this.busy;
+    $('image-shine').hidden = !d;
     const busyText = this.busy === 'prepare' ? t('image.busy.prepare') : this.busy === 'stitches' ? t('image.busy.stitches') : '';
     $('image-status').textContent = busyText;
     if (!d) {

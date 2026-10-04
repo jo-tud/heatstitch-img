@@ -25,7 +25,7 @@ Drei Modi, oben umschaltbar (Tasten 1, 2 und 3):
 - Absolute Farbskala mit einstellbarem Maximum
 - **Validierung** jeder geladenen Datei (Sicher / Vorsicht / Kritisch) für ein wählbares Material (Stoff × Garnstärke), mit orange/rotem Overlay, Gesamturteil und Zonenliste, siehe unten
 - Ungetrimmte Sprünge optional als Garn zählen
-- Stichplan-Overlay in Garnfarben, wahlweise als realistische Fäden mit Schattierung und Schatten, Sprünge gestrichelt
+- Stichplan-Overlay in Garnfarben, wahlweise als realistische Fäden mit Schattierung und Schatten, Sprünge gestrichelt; das Licht folgt dabei Maus oder Neigung des Handys
 - Zoom (Mausrad, Pinch), Verschieben, Tooltip mit Dichte und Position
 - Statistik: Stiche, Sprünge, Schnitte, Farbwechsel, Größe, Garnlänge, Max-Dichte
 - Mehrere Dateien laden und umschalten (auch per Pfeiltasten oder j/k, `f` = Einpassen)
@@ -259,8 +259,8 @@ liegt auf einer Höhenlinie innerhalb.
   (Boustrophedon-Zerlegung, Choset 2000). Ohne festen Winkel nimmt jede Fläche von 16 Winkeln den mit
   den wenigsten Abschnitten (Goldman-Patent), möglichst 30° anders als berührende Flächen. Unterlage:
   Reihen um 90° gedreht, dreifacher Abstand, 0,4 mm innerhalb der Kante. Zwischen Abschnitten läuft der
-  Faden auf dem kürzesten Weg innen unter noch nicht gestickten Reihen (wie Ink/Stitchs Underpath), sonst
-  springt er.
+  Faden auf dem kürzesten Weg innen unter noch nicht gestickten Reihen (wie Ink/Stitchs Underpath); läge
+  er dabei mehr als 2 mm auf schon gestickten Reihen, springt er stattdessen.
 - **Satin:** Die Kanten werden von der Mittellinie aus senkrecht bis zum Rand gemessen (die
   „Stroke-Normalen“ des Goldman-Patents). Abstand 0,4 mm zwischen Einstichen derselben Seite, gemessen an
   der Seite, die weiter vorrückt; auf der Innenseite von Kurven rückt jeder zu nahe Einstich (unter
@@ -276,10 +276,23 @@ liegt auf einer Höhenlinie innerhalb.
   (Webware 40 wt 0,40 mm zwischen benachbarten Reihen, wie in der Beispielkatze gemessen), Zugausgleich
   nach Stoff (Wilcom-Tabelle). Im Panel *Stiche* lässt sich alles überschreiben.
 
+### Lebendiges Garn
+
+In der realistischen Fadenansicht folgt das Licht dem Mauszeiger oder der Neigung des Handys
+(`src/render/light.ts`; auf iPhones nach einmaliger Erlaubnis). Garn glänzt quer zu seinen Fasern, also
+leuchten Satinsäulen und Füllreihen je nach Stichrichtung auf oder werden dunkel, wie beim Drehen eines
+gestickten Aufnähers in der Hand; die Schatten wandern mit. Beim ersten umgewandelten Bild schaltet der
+Modus Bild die realistische Ansicht ein und lässt das Licht einmal um das Motiv laufen, bei jedem neuen
+Bild läuft es wieder (nicht bei *Bewegung reduzieren*). *✦ Wie gestickt* auf der Leinwand zeigt es jederzeit.
+Eine Recherche bei Wilcom, Hatch, PE-Design, Embird, Ink/Stitch, mySewnet und Online-Konvertern fand nur
+feste Lichteinstellungen in Dialogen; Licht, das man mit Maus oder Neigung bewegt, bietet keines davon.
+Die Einstellung *Licht folgt Maus und Neigung* unter *Anzeige* gilt in allen Modi.
+
 Die erzeugten Stiche laufen durch dieselbe Prüfung wie geladene Dateien. *Als Stickdatei übernehmen*
 legt sie als PES in die Dateiliste. Zum Vergleich auf Webware mit 40 wt: Das Foto einer Katze (80 × 107 mm,
-5 Farben, 60 Objekte) ergibt 24 Vorsicht- und 4 kritische Zonen mit höchstens 11,4 mm/mm², die
-professionell digitalisierte Beispielkatze 15 und 2 mit höchstens 9,9 mm/mm². Die Befunde liegen meist
+5 Farben, 62 Objekte) ergibt 16 Vorsicht- und 3 kritische Zonen und 131 Fadenschnitte bei 16 400 Stichen,
+die professionell digitalisierte Beispielkatze 15 und 2 Zonen (höchstens 9,9 mm/mm²) und 89 Schnitte bei
+9 200 Stichen. Die Befunde liegen meist
 dort, wo Satin den Rand einer Füllung überlappt; die Korrektur im Modus Dichte kann sie danach angehen.
 
 **Grenzen:** Fotos werden flächig (posterisiert) gestickt, nicht schattiert wie bei Photo-Stitch-

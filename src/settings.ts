@@ -40,6 +40,8 @@ export interface ImageSettings {
   view: ImageView;
   /** Brush diameter in mm. */
   brushMm: number;
+  /** The first converted image was shown as sewn thread with the light going round once. */
+  introDone: boolean;
 }
 
 export interface Settings {
@@ -64,6 +66,8 @@ export interface Settings {
   realistic: boolean;
   /** Visual thread width of the realistic view in mm; reset to the thread weight's width when the profile thread changes. */
   threadMm: number;
+  /** In the realistic view the light follows the pointer and the tilt of a phone. */
+  liveLight: boolean;
   /** Orange/red overlay of the 3-tier validation. */
   showValidation: boolean;
   /** Findings column next to the canvas is shown (else only a chip on the canvas). */
@@ -99,6 +103,7 @@ export const DEFAULTS: Settings = {
   opacity: 0.6,
   realistic: false,
   threadMm: threadWidthMm(DEFAULT_PROFILE),
+  liveLight: true,
   showValidation: true,
   findingsOpen: true,
   profile: DEFAULT_PROFILE,
@@ -108,7 +113,7 @@ export const DEFAULTS: Settings = {
     thread: { max: 12 },
     penetrations: { max: 4 },
   },
-  image: { prepare: { ...DEFAULT_PREPARE }, stitch: {}, view: 'stitches', brushMm: 3 },
+  image: { prepare: { ...DEFAULT_PREPARE }, stitch: {}, view: 'stitches', brushMm: 3, introDone: false },
   lang: null,
 };
 
@@ -140,6 +145,7 @@ export function loadSettings(): Settings {
       scales: { ...structuredClone(DEFAULTS.scales), ...s.scales },
       profile,
       threadMm: typeof s.threadMm === 'number' && s.threadMm > 0 ? s.threadMm : threadWidthMm(profile),
+      liveLight: typeof s.liveLight === 'boolean' ? s.liveLight : DEFAULTS.liveLight,
       checks: normalizeChecks(s.checks),
       correction: normalizeCorrection(s.correction),
       image: normalizeImage(s.image),
@@ -175,6 +181,7 @@ function normalizeImage(i: Partial<ImageSettings> | undefined): ImageSettings {
     stitch,
     view: IMAGE_VIEWS.includes(i?.view as ImageView) ? i!.view! : d.view,
     brushMm: num(i?.brushMm, 0.5, 30, d.brushMm),
+    introDone: i?.introDone === true,
   };
 }
 

@@ -27,6 +27,7 @@ import type { Measurement } from './validation/measure';
 import { initUpdateNotice } from './ui/updateNotice';
 import { downloadPattern, outputFileName, writePattern } from './writers';
 import { ImageMode } from './ui/imageMode';
+import { lightFromPointer, lightFromTilt, sweep } from './render/light';
 import { classify } from './validation/validate';
 import { setTrims } from './model/jumps';
 import {
@@ -752,11 +753,64 @@ const imageMode = new ImageMode({
   save: () => saveSettings(settings),
   redraw,
   fit: () => fitView(),
+  reveal: (first) => {
+    if (first) shine();
+    else if (settings.realistic && settings.liveLight && settings.image.view === 'stitches') sweep(redraw);
+  },
   validate: async (p) => classify(await validator.measure(p), settings.profile, settings.checks),
   takeOver: async (p, name) => {
     await files.add([new File([writePattern(p, 'pes') as BlobPart], `${name}.pes`)]);
     setMode('flow');
   },
+});
+
+// Living thread: the light of the realistic view follows the pointer or the tilt of a phone -------
+
+/** Whether the canvas shows realistic threads right now. */
+const threadsShown = () =>
+  settings.realistic &&
+  (settings.mode === 'flow' || (settings.mode === 'density' && (settings.overlay || editor.active)) || (settings.mode === 'image' && settings.image.view === 'stitches'));
+
+let tiltListening = false;
+function listenTilt(): void {
+  if (tiltListening) return;
+  tiltListening = true;
+  window.addEventListener('deviceorientation', (e) => {
+    if (e.beta === null || e.gamma === null || !settings.liveLight || !threadsShown()) return;
+    lightFromTilt(e.beta, e.gamma);
+    redraw();
+  });
+}
+/** iOS asks before a page may read the tilt, and only from a tap. */
+const tiltPermission = (window.DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> } | undefined)?.requestPermission;
+async function allowTilt(): Promise<void> {
+  if (!tiltPermission) return listenTilt();
+  try {
+    if ((await tiltPermission.call(window.DeviceOrientationEvent)) === 'granted') {
+      listenTilt();
+      $('allow-tilt').hidden = true;
+    }
+  } catch {
+    // Refused or not over HTTPS: the pointer still moves the light.
+  }
+}
+if ('DeviceOrientationEvent' in window && !tiltPermission) listenTilt();
+$('allow-tilt').hidden = !tiltPermission;
+$('allow-tilt').addEventListener('click', () => void allowTilt());
+
+/** Shows the converted image as sewn thread and lets the light go round once. */
+function shine(): void {
+  settings.realistic = true;
+  settings.liveLight = true;
+  settings.image.view = 'stitches';
+  saveSettings(settings);
+  controls.refresh();
+  imageMode.render();
+  sweep(redraw);
+}
+$('image-shine').addEventListener('click', () => {
+  void allowTilt();
+  shine();
 });
 
 const langSelect = $<HTMLSelectElement>('lang');
@@ -1013,6 +1067,10 @@ canvas.addEventListener('pointermove', (e) => {
     }
     imageMode.hover(wx, wy);
     if (!prev && imageMode.painting) redraw();
+  }
+  if (settings.liveLight && e.pointerType === 'mouse' && threadsShown()) {
+    lightFromPointer(pos[0], pos[1], stageW, stageH);
+    redraw();
   }
   if (splitDrag) {
     split = Math.min(0.98, Math.max(0.02, pos[0] / stageW));

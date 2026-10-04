@@ -372,4 +372,9 @@ export const de = {
   'image.take.hint': 'Legt die Stiche als PES-Datei in die Dateiliste. Dort lassen sie sich prüfen, korrigieren und als DST oder PES speichern.',
   'image.busy.prepare': 'Bereite Bild vor …',
   'image.busy.stitches': 'Erzeuge Stiche …',
+  'controls.liveLight': 'Licht folgt Maus und Neigung',
+  'controls.liveLight.hint': 'Das Licht kommt aus der Richtung des Mauszeigers oder folgt der Neigung des Handys. Satin und Füllung glänzen je nach Stichrichtung, wie echtes Garn.',
+  'controls.tilt': 'Neigung des Geräts nutzen',
+  'image.shine': 'Wie gestickt',
+  'image.shine.hint': 'Realistische Fäden mit beweglichem Licht: die Maus über das Motiv bewegen oder das Handy neigen.',
 } as const;

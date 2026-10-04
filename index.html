@@ -248,6 +248,8 @@
             <span class="label"><span data-i18n="controls.threadWidth"></span> <output id="thread-width-out"></output></span>
             <input type="range" id="thread-width" min="0.02" max="1" step="0.01" />
           </label>
+          <label class="check indent" data-i18n-title="controls.liveLight.hint"><input type="checkbox" id="live-light" /><span data-i18n="controls.liveLight"></span></label>
+          <button type="button" id="allow-tilt" class="link indent" data-i18n="controls.tilt" hidden></button>
           <fieldset class="marks" data-mode="flow density">
             <legend data-i18n="marks.title"></legend>
             <label class="check"><input type="checkbox" data-mark="jumps" /><span><i class="mk mk-jump" aria-hidden="true"></i><span data-i18n="marks.jumps"></span></span></label>
@@ -282,6 +284,7 @@
           <button type="button" id="redo" class="tool" data-i18n-title="edit.redo.key" data-i18n-aria="edit.redo"><span aria-hidden="true">↷</span></button>
         </div>
         <div class="stage-tools stage-tools-end">
+          <button type="button" id="image-shine" class="tool primary" data-mode="image" data-i18n-title="image.shine.hint" hidden><span aria-hidden="true">✦</span> <span data-i18n="image.shine"></span></button>
           <button type="button" id="fit" class="tool" data-i18n-title="controls.fit.key"><span aria-hidden="true">⤢</span> <span data-i18n="controls.fit"></span></button>
           <button type="button" id="export" class="tool" data-mode="flow density" data-i18n-title="controls.export.hint"><span aria-hidden="true">⤓</span> PNG</button>
         </div>

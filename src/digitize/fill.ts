@@ -15,7 +15,8 @@ import type { Pt } from './skeleton';
  *   patent; fewer sections mean fewer travels.
  * - Underlay: a sparse fill at +90 degrees, inset from the edge, sewn first.
  * - Between sections the needle travels inside the region on a shortest path that avoids rows sewn
- *   already, so later rows cover it (Ink/Stitch's underpath); a jump is used where there is none.
+ *   already, so later rows cover it (Ink/Stitch's underpath); where it would run on top of sewn rows
+ *   for more than 2 mm, the needle jumps instead.
  */
 
 export interface FillParams {
@@ -48,6 +49,8 @@ const STAGGERS = 4;
 const UNDERLAY_STITCH = 3;
 const UNDERLAY_INSET = 0.4;
 const TRAVEL_STITCH = 2.5;
+/** Travel may run on top of sewn rows for this long (mm); a longer way becomes a jump. */
+const SEWN_CROSSING = 2;
 const RAD = Math.PI / 180;
 
 const dist = (p: Pt, q: Pt) => Math.hypot(p[0] - q[0], p[1] - q[1]);
@@ -232,6 +235,12 @@ class TravelGrid {
     }
   }
 
+  /** Within 1 mm of a or b: a path may leave and reach rows sewn already there. */
+  private near(c: number, a: Pt, b: Pt): boolean {
+    const [x, y] = this.center(c % this.gw, Math.floor(c / this.gw));
+    return Math.hypot(x - a[0], y - a[1]) < 1 || Math.hypot(x - b[0], y - b[1]) < 1;
+  }
+
   /** Nearest passable cell to p within a few cells. */
   private snap(p: Pt): number {
     const c = this.index(p);
@@ -256,8 +265,10 @@ class TravelGrid {
   }
 
   /**
-   * Shortest inside path from a to b (Dijkstra, 8 neighbours). Steps over sewn cells cost much more,
-   * and the cost falls towards the middle of the shape, which keeps travel away from the edges.
+   * Shortest inside path from a to b (Dijkstra, 8 neighbours); the cost falls towards the middle of
+   * the shape, which keeps travel away from the edges. With `avoidSewn`, cells covered by rows sewn
+   * already cost much more, and a path that would still lie on top of them for more than
+   * SEWN_CROSSING is refused (null): a jump is cleaner than a visible travel line.
    */
   path(a: Pt, b: Pt, avoidSewn: boolean): Pt[] | null {
     const s = this.snap(a);
@@ -286,7 +297,8 @@ class TravelGrid {
         const q = j * this.gw + i;
         const d = this.depth[q];
         if (d <= 0.05) continue;
-        const w = len * (1 + 0.4 / (d + 0.1)) * (avoidSewn && this.covered[q] ? 15 : 1);
+        const sewn = avoidSewn && this.covered[q] && !this.near(q, a, b);
+        const w = len * (1 + 0.4 / (d + 0.1)) * (sewn ? 12 : 1);
         const nc = cc + w;
         if (nc < cost[q]) {
           cost[q] = nc;
@@ -297,7 +309,12 @@ class TravelGrid {
     }
     if (from[t] < 0 && s !== t) return null;
     const cells: Pt[] = [];
-    for (let c = t; c >= 0; c = c === s ? -1 : from[c]) cells.push(this.center(c % this.gw, Math.floor(c / this.gw)));
+    let onTop = 0;
+    for (let c = t; c >= 0; c = c === s ? -1 : from[c]) {
+      cells.push(this.center(c % this.gw, Math.floor(c / this.gw)));
+      if (avoidSewn && this.covered[c] && !this.near(c, a, b)) onTop += this.cell;
+    }
+    if (onTop > SEWN_CROSSING) return null;
     cells.reverse();
     return [a, ...simplify(cells, this.cell * 0.6).slice(1, -1), b];
   }

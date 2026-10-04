@@ -374,4 +374,9 @@ export const en: Record<keyof typeof de, string> = {
   'image.take.hint': 'Adds the stitches to the file list as a PES file. There they can be checked, corrected and saved as DST or PES.',
   'image.busy.prepare': 'Preparing image …',
   'image.busy.stitches': 'Generating stitches …',
+  'controls.liveLight': 'Light follows pointer and tilt',
+  'controls.liveLight.hint': 'The light comes from where the pointer is or follows the tilt of a phone. Satin and fill shine depending on their stitch direction, like real thread.',
+  'controls.tilt': 'Use the tilt of the device',
+  'image.shine': 'As sewn',
+  'image.shine.hint': 'Realistic threads with a moving light: move the pointer over the design or tilt the phone.',
 };
