@@ -1,387 +1,456 @@
 # heatstitch
 
-Stickdateien ansehen, prüfen und korrigieren, und aus Bildern neue machen, komplett im Browser (kein
-Backend, keine Uploads).
+View, check and fix embroidery files right in the browser, and turn pictures into new ones. No
+backend, no uploads: your files never leave your machine.
 
-Drei Modi, oben umschaltbar (Tasten 1, 2 und 3):
+**Try it: <https://pfedan.github.io/heatstitch/>** (guide: [docs.html](https://pfedan.github.io/heatstitch/docs.html))
 
-- **Ablauf**: wie die Maschine die Datei abarbeitet. Farbblöcke als Ebenen (ausblenden, hervorheben),
-  Stiche färben nach Garnfarbe, Reihenfolge, Stichart oder Stichlänge, Markierungen für Sprünge,
-  Fadenschnitte, Farbwechsel, Start/Ende und Einstiche, ein Player mit geschätzter Nähzeit, und eine
-  Liste der Sprünge, die sich einzeln oder nach Länge schneiden und vernähen oder ohne Schnitt
-  mitziehen lassen.
-- **Dichte**: Heatmap, Prüfung für Stoff und Garn, Korrektur (alles unten Beschriebene).
-- **Bild**: aus einem beliebigen Bild oder Foto eine Stickdatei machen: Farben auf Garnfarben
-  reduzieren, mit Farbliste und Pinsel nachbessern, Füll-, Satin- und Steppstiche erzeugen, siehe
-  [Bild → Stickdatei](#bild--stickdatei).
+![heatstitch: density heatmap with findings next to the realistic thread view](public/og-image.jpg)
 
-## Funktionen
+## Three modes
 
-- **Formate:** DST (Tajima) und PES (Brother, liest den PEC-Block)
-- **Zwei Dichtemetriken**, per Umschalter:
-  - *Garnlänge* in mm/mm²: jedes Stichsegment wird exakt auf die Rasterzellen verteilt, die es durchläuft
-  - *Einstiche* in 1/mm²: Nadeleinstiche pro Fläche (Perforationsrisiko)
-- Rasterzelle 0,5 bis 5 mm, optionale Gauss-Glättung
-- Absolute Farbskala mit einstellbarem Maximum
-- **Validierung** jeder geladenen Datei (Sicher / Vorsicht / Kritisch) für ein wählbares Material (Stoff × Garnstärke), mit orange/rotem Overlay, Gesamturteil und Zonenliste, siehe unten
-- Ungetrimmte Sprünge optional als Garn zählen
-- Stichplan-Overlay in Garnfarben, wahlweise als realistische Fäden mit Schattierung und Schatten, Sprünge gestrichelt; das Licht folgt dabei Maus oder Neigung des Handys
-- Zoom (Mausrad, Pinch), Verschieben, Tooltip mit Dichte und Position
-- Statistik: Stiche, Sprünge, Schnitte, Farbwechsel, Größe, Garnlänge, Max-Dichte
-- Mehrere Dateien laden und umschalten (auch per Pfeiltasten oder j/k, `f` = Einpassen)
-- PNG-Export der aktuellen Ansicht inkl. Legende
-- **Korrektur:** automatisch nach Digitalisier-Praxis (Füllung unter Kanten zurückziehen, Kurzstiche in Satinkurven, gleichmäßig neu verteilen, Fokus Fadendichte oder Lochdichte, praxisübliche Funde und quittierte Zonen bleiben unangetastet) und von Hand (Einstiche wählen, verschieben, löschen, Auswahl ausdünnen), mit Rückgängig/Wiederholen und Vergleichsansicht Original/korrigiert, siehe unten
-- **Speichern als DST oder PES** (eigene Writer, kein pyembroidery)
-- **Bild → Stickdatei:** PNG, JPG, WebP, SVG; Vorverarbeitung für Fotos, Garnfarben der Brother-Palette, Pinsel, Tatami-Füllung, Satinsäulen und Steppstich, ohne externe Bibliotheken
-- Deutsch / Englisch
-- PWA: installierbar, offline nutzbar, "Öffnen mit" für .dst/.pes
-- Kurzanleitung auf Deutsch und Englisch (`docs.html`, Link "Anleitung" oben rechts)
+Switch at the top of the page, or with the keys `1`, `2` and `3`.
 
-## Validierung
+**Sequence** shows how the machine works through the file. Color blocks act as layers (hide,
+highlight), stitches can be colored by thread color, order, stitch type or stitch length, markers show
+jumps, trims, color changes, start and end and needle penetrations. A player steps through the design
+with an estimated sewing time, and the list of jumps lets you trim and tie them one by one or all at
+once by length, or leave them untrimmed.
 
-Läuft automatisch, sobald eine Datei geladen ist, unabhängig von den Darstellungsreglern. Die Messung
-(Web Worker) hängt nicht vom Material ab; die Einstufung schon, sie ist billig und läuft beim Wechsel
-von Stoff oder Garn sofort für alle geladenen Dateien neu.
+![Sequence mode with the cat example, realistic threads, color list and jump list](public/guide/cat-en.jpg)
 
-### Materialprofile
+**Density** shows the heatmap, checks the file for the chosen fabric and thread and offers the
+correction (all described below).
 
-Die Grenzwerte gelten für 40 wt auf stabiler Webware und werden mit einem Faktor aus Stoff und Garn
-skaliert (Verhältnis des empfohlenen Stichabstands zur Referenz 0,40 mm).
+![Density mode with a critical zone where three fills overlap](public/guide/heatmap-en.jpg)
 
-| Stoff | Faktor | empf. Abstand (40 wt) |
+**Image** turns any picture or photo into an embroidery file: it reduces the colors to thread colors,
+lets you fix them with a color list and a brush, and generates fill, satin and running stitches (see
+[Image to embroidery](#image-to-embroidery)).
+
+![Image mode with the example flower: fill, satin and running stitches over the prepared image](public/guide/image-en.jpg)
+
+## Privacy
+
+Embroidery files never leave your computer. heatstitch parses, checks, corrects and writes them with
+JavaScript in your browser; there is no backend, no account, no analytics and no third-party script.
+The site is a set of static files served by GitHub Pages, and the only requests it makes go back to
+that same site (the app itself, the example files and the check for a new version). Loaded files and
+edits are kept in the browser's IndexedDB so they survive a reload, and removing a file from the list
+deletes it there. After the first visit the app also works offline.
+
+The same holds for pictures in Image mode: they are decoded, prepared and converted in the browser
+and kept in IndexedDB together with your color edits and brush strokes. The optional *Prepare the
+image with AI* workflow only suggests a prompt for an AI chat of your choice; heatstitch itself never
+sends the picture anywhere.
+
+## Features
+
+- **Formats:** DST (Tajima) and PES (Brother, reads the PEC block)
+- **Two density metrics**, switchable:
+  - *Thread length* in mm/mm²: every stitch segment is distributed exactly over the grid cells it crosses
+  - *Penetrations* in 1/mm²: needle penetrations per area (perforation risk)
+- Grid cell 0.5 to 5 mm, optional Gaussian smoothing
+- Absolute color scale with adjustable maximum
+- **Validation** of every loaded file (Safe / Caution / Critical) for a chosen material (fabric × thread
+  weight), with orange/red overlay, overall verdict and zone list, see below
+- Optionally count untrimmed jumps as thread
+- Stitch plan overlay in thread colors, jumps dashed
+- **Realistic view:** round, twisted threads with shading and shadows, rendered with WebGL, with
+  adjustable thread width; the light follows the pointer or the tilt of a phone
+- Zoom (wheel, pinch), pan, tooltip with density and position
+- Statistics: stitches, jumps, trims, color changes, size, thread length, max density
+- Load several files and switch between them (also with arrow keys or j/k, `f` = fit)
+- **Examples dropdown** under the file field: the cat, overlapping circles and a confetti design with
+  jumps load straight into the app
+- **Jump editing** in Sequence mode: trim and tie, or remove trims, one jump at a time or by length
+- PNG export of the current view including legend
+- **Correction (beta):** automatic, following digitizing practice, and by hand, with undo/redo and an
+  original/corrected compare view, see below
+- **Save as DST or PES** (own writers, no pyembroidery)
+- **Image to embroidery:** PNG, JPG, WebP, SVG; preparation for photos, Brother thread colors, brush,
+  tatami fill whose rows follow the image, satin columns and running stitch, without external libraries
+- English / German
+- PWA: installable, works offline, "Open with" for .dst/.pes and images
+- Short guide in English and German (`docs.html`, "Guide" link at the top right)
+
+![Realistic thread rendering of overlapping fills](public/guide/stitchplan.jpg)
+
+### Jumps and trims
+
+Sequence mode lists every jump with its length and whether it is trimmed and tied. Long jumps
+without a trim are flagged because the thread lies loose on the fabric. *Trim from this length*
+and *Do not trim shorter* apply a length rule to all jumps at once; each change is an undo step.
+
+![Jump list for the confetti example: untrimmed long jumps flagged, one jump selected](public/guide/jumps-en.jpg)
+
+## Validation
+
+Runs automatically once a file is loaded, independent of the display settings. The measurement
+(Web Worker) does not depend on the material; the classification does. It is cheap and reruns
+instantly for all loaded files when you change fabric or thread.
+
+### Material profiles
+
+The limits apply to 40 wt on stable woven fabric and are scaled by a factor from fabric and thread
+(ratio of the recommended stitch spacing to the 0.40 mm reference).
+
+| Fabric | Factor | Recommended spacing (40 wt) |
 |---|---|---|
-| Webware, stabil (Twill, Canvas, Denim) | 1,0 | 0,40 bis 0,45 mm |
-| Kappe, strukturiert | 0,9 | 0,40 bis 0,50 mm |
-| Strick, Fleece (Piqué, Jersey) | 0,85 | 0,42 bis 0,50 mm |
-| Frottee, Flor | 0,65 | 0,55 bis 0,70 mm |
-| Leicht, empfindlich (Seide, Batist) | 0,6 | 0,60 bis 0,70 mm |
-| Leder, Kunstleder (+ Perforationsprüfung) | 0,7 | 0,50 bis 0,80 mm |
+| Stable woven (twill, canvas, denim) | 1.0 | 0.40 to 0.45 mm |
+| Cap, structured | 0.9 | 0.40 to 0.50 mm |
+| Knit, fleece (piqué, jersey) | 0.85 | 0.42 to 0.50 mm |
+| Terry, pile | 0.65 | 0.55 to 0.70 mm |
+| Light, delicate (silk, batiste) | 0.6 | 0.60 to 0.70 mm |
+| Leather, faux leather (+ perforation check) | 0.7 | 0.50 to 0.80 mm |
 
-| Garn | 60 wt | 40 wt | 30 wt | 12 wt |
+| Thread | 60 wt | 40 wt | 30 wt | 12 wt |
 |---|---|---|---|---|
-| Faktor (nach Madeira-Abstandstabelle) | 1,15 | 1,0 | 0,8 | 0,5 |
+| Factor (after the Madeira spacing table) | 1.15 | 1.0 | 0.8 | 0.5 |
 
-### Regeln
+### Rules
 
-| Regel | Vorsicht | Kritisch |
+| Rule | Caution | Critical |
 |---|---|---|
-| Garnlänge pro Fläche, Füllstich | ab 7,0 mm/mm² (ca. 3 Lagen) | ab 9,5 mm/mm² (4 Lagen) |
-| Garnlänge pro Fläche, reiner Satin | ab 11 mm/mm² | ab 12 mm/mm² |
-| Kurzstich-Häufung | ≥ 8 Stiche unter 1 mm in einer Zelle (Webware, Caps) | ≥ 8 (alle anderen Stoffe) |
-| Perforation (nur Leder) | ≥ 6 Einstiche im Umkreis von 1 mm | ≥ 9 |
+| Thread length per area, fill | from 7.0 mm/mm² (about 3 layers) | from 9.5 mm/mm² (4 layers) |
+| Thread length per area, pure satin | from 11 mm/mm² | from 12 mm/mm² |
+| Short-stitch cluster | ≥ 8 stitches under 1 mm in one cell (woven, caps) | ≥ 8 (all other fabrics) |
+| Perforation (leather only) | ≥ 6 penetrations within 1 mm | ≥ 9 |
 
-Dichtewerte jeweils × Profilfaktor. Eine Füllstichlage mit 0,4 mm Abstand hat 2,5 mm/mm², ein Satin
-mit 0,4 mm Abstand (zwischen Einstichen auf derselben Seite) 5,0 mm/mm².
+Density values are multiplied by the profile factor. One fill layer at 0.4 mm spacing has 2.5 mm/mm²,
+a satin at 0.4 mm spacing (between penetrations on the same side) 5.0 mm/mm².
 
-- **Raster:** feste 1-mm-Zellen. Die Dichte wird auf 0,2-mm-Unterzellen berechnet, mit σ = 0,6 mm
-  geglättet; jede Zelle bekommt den **Spitzenwert** ihrer Unterzellen. So werden schmale Säulen
-  (Schrift, Ränder) nicht mit ihrer leeren Umgebung weggemittelt; gleichmäßige Füllflächen lesen
-  sich höchstens etwa 7 % über ihrem Nennwert.
-- **Schwellen liegen zwischen typischen Aufbauten**, damit nicht die Rasterlage entscheidet: zwei
-  Füllflächen mit Unterlage erreichen bis 6,4, drei Lagen ab 7,4, vier Lagen ab 9,95, ein Satinrand
-  über einer Füllfläche (beide mit Unterlage) bis 9,0.
-- **Satin:** liegt oben auf und sticht nur an den Kanten ein. Die Grenzen einer Zelle werden linear
-  nach ihrem Satinanteil zwischen Füllstich- und Satinwerten interpoliert (Satin = Zickzack-Stiche
-  1 bis 12,1 mm, nahezu gegenläufig).
-- **Kurzstich-Häufung:** bis zu 6 kurze Stiche direkt nach Blockbeginn (Vernähen nach Sprung,
-  Schnitt, Farbwechsel oder Designstart) bzw. direkt vor Blockende zählen nicht. Längere Ketten
-  kurzer Stiche zählen ab dem siebten Stich.
-- **Perforation:** pro Einstich die Zahl der anderen Einstiche im Umkreis von 1 mm (Vernähstiche
-  ausgenommen). Eine Lochreihe mit Abstand p ergibt 2 × ⌊1/p⌋: 4 bei 0,35 bis 0,5 mm, 6 bei
-  0,33 mm, 10 bei 0,2 mm. Gestapelte Kanten und enge Innenkurven addieren sich.
-- **Zonen:** zusammenhängende (8er-Nachbarschaft) markierte Zellen bilden eine Zone; ihre Stufe ist
-  die der schlimmsten Zelle. Klick (oder `n` / Umschalt+`n`) zoomt hin, Überfahren rahmt sie ein,
-  `v` blendet die Markierungen ein und aus. Bei kritischen Dichte-Zonen steht dabei, wie viel
-  Prozent der Spitzenwert über der Grenze liegt, damit knappe Fälle erkennbar sind.
-- **Praxisübliche Funde** (`src/validation/practice.ts`) bleiben in der Liste, zählen aber nicht
-  zum Gesamturteil, und die Korrektur lässt sie aus. Perforation zählt immer.
-  - *Kleine Stelle:* Vorsicht bis 3 mm² oder eine einzelne kritische Zelle (Satin-Enden,
-    Objektübergänge, Wendepunkte, Vernähknoten).
-  - *Satin-Übergang:* überwiegend Satin, kompakt (höchstens 16 mm², Seitenverhältnis bis 2,5) und
-    höchstens 30 % über der Grenze, also zwei Satinlagen, wo Säulen sich treffen oder kreuzen.
-    Zwei Säulen übereinander der Länge nach ergeben eine lange Zone und bleiben ein Befund.
-  - *Kurzstiche auf stabilem Stoff:* reine Kurzstich-Zonen auf Webware und Caps.
+- **Grid:** fixed 1 mm cells. Density is computed on 0.2 mm subcells and smoothed with σ = 0.6 mm;
+  each cell gets the **peak** of its subcells. That way narrow columns (lettering, borders) are not
+  averaged away with their empty surroundings; even fills read at most about 7 % above their nominal
+  value.
+- **Thresholds sit between typical builds**, so the grid position does not decide: two fills with
+  underlay reach up to 6.4, three layers from 7.4, four layers from 9.95, a satin border over a fill
+  (both with underlay) up to 9.0.
+- **Satin** lies on top and only penetrates at the edges. A cell's limits are interpolated linearly
+  between fill and satin values by its satin share (satin = zigzag stitches 1 to 12.1 mm, nearly
+  opposite in direction).
+- **Short-stitch cluster:** up to 6 short stitches right after a block starts (tie-in after a jump,
+  trim, color change or design start) or right before it ends do not count. Longer chains of short
+  stitches count from the seventh stitch.
+- **Perforation:** for each penetration, the number of other penetrations within 1 mm (tie stitches
+  excluded). A row of holes with spacing p gives 2 × ⌊1/p⌋: 4 at 0.35 to 0.5 mm, 6 at 0.33 mm, 10 at
+  0.2 mm. Stacked edges and tight inner curves add up.
+- **Zones:** connected (8-neighborhood) flagged cells form a zone; its level is that of its worst
+  cell. Click (or `n` / Shift+`n`) zooms to it, hovering outlines it, `v` toggles the markings. For
+  critical density zones the list shows how many percent the peak is over the limit, so close calls
+  are visible.
+- **Normal in practice** (`src/validation/practice.ts`): these findings stay in the list but do not
+  count towards the verdict, and the correction leaves them alone. Perforation always counts.
+  - *Small spot:* Caution up to 3 mm² or a single critical cell (satin ends, object joins, turning
+    points, tie-off knots).
+  - *Satin join:* mostly satin, compact (at most 16 mm², aspect ratio up to 2.5) and at most 30 %
+    over the limit, i.e. two satin layers where columns meet or cross. Two columns stacked
+    lengthwise give a long zone and remain a finding.
+  - *Short stitches on stable fabric:* pure short-stitch zones on woven fabric and caps.
 
-  Mit *Trotzdem prüfen* zählt eine solche Zone wieder mit; *Quittieren* nimmt jede andere Zone aus
-  dem Urteil. Beides wird mit der Datei gespeichert und verfällt, wenn die Zone durch eine Änderung
-  verschwindet oder deutlich wächst.
-- **Tooltip:** zeigt neben dem Anzeigewert den Prüfwert der Zelle und die für sie geltenden Grenzen.
-- API: `measurePattern(pattern)` (profilunabhängig) und `classify(measurement, profile)` in
-  `src/validation/validate.ts`. Schwellen in `src/validation/thresholds.ts`, Profile in
+  *Check anyway* counts such a zone again; *Acknowledge* takes any other zone out of the verdict.
+  Both are saved with the file and expire when the zone disappears or grows noticeably after an edit.
+- **Tooltip:** shows the cell's check value and the limits that apply to it next to the displayed value.
+- API: `measurePattern(pattern)` (profile independent) and `classify(measurement, profile)` in
+  `src/validation/validate.ts`. Thresholds in `src/validation/thresholds.ts`, profiles in
   `src/validation/profiles.ts`.
 
-## Korrektur
+![Findings list with verdict and zones](public/guide/findings-en.jpg)
 
-Das Panel *Korrektur* steht in der rechten Spalte unter den Befunden und arbeitet mit dem gewählten
-Material und den eingeschalteten Prüfungen. Jede Änderung ist ein Rückgängig-Schritt (Strg+Z /
-Strg+Umschalt+Z), *Original* stellt die geladene Datei wieder her.
+## Correction (beta)
 
-Die bearbeitete Fassung wird bei jeder Änderung im Browser neben dem unveränderten Original
-gespeichert (IndexedDB) und nach dem Neuladen der Seite wiederhergestellt; ein Rückgängig-Schritt
-führt dann zurück zum Original. Das Original selbst wird nie überschrieben, und *×* entfernt beide.
+The *Correction* panel sits in the right column below the findings and works with the chosen
+material and the enabled checks. It is marked beta: check the result in the compare view and do a
+test stitch-out before production. Every change is an undo step (Ctrl+Z / Ctrl+Shift+Z), *Original*
+restores the loaded file.
 
-### Automatisch
+The edited version is stored in the browser next to the unchanged original (IndexedDB) on every
+change and restored after a page reload; one undo step then leads back to the original. The original
+itself is never overwritten, and *×* removes both.
 
-Die Korrektur arbeitet wie ein Digitalisierer von Hand: Sie verändert Stiche nur dort, wo es im
-fertigen Stick nicht auffällt, und lässt Stellen, die in der Praxis normal sind, in Ruhe. *Ziel* ist
-entweder „keine Warnung“ (Vorsicht und Kritisch beheben) oder „nur Kritisch“ (Standard). *Nur gewählte Zone*
-beschränkt sie auf die Zone, die in der Liste gewählt ist. Sie läuft im Web Worker, und jeder
-Schritt wird nur übernommen, wenn das Ergebnis im Bereich dadurch nicht schlechter wird.
+### Automatic
 
-*Fokus* legt fest, welche Regel Stiche einspart:
+The correction works like a digitizer by hand: it only changes stitches where it won't show in the
+finished embroidery, and leaves spots alone that are normal in practice. The *goal* is either
+"no warnings" (fix Caution and Critical) or "critical only" (default). *Selected zone only* limits it
+to the zone selected in the list. It runs in a Web Worker, and each step is only kept if the result
+in that area does not get worse.
 
-- **Beides** (Standard): Fadendichte, Kurzstich-Häufungen und bei Leder die Perforation.
-- **Fadendichte**: nur zu viel Garn pro Fläche. Verdeckte Füllreihen werden ausgedünnt.
-- **Lochdichte**: nur Einstiche (Kurzstiche, Perforation); zusätzlich werden Einstiche
-  verschiedener Lagen, die im selben Loch landen, um höchstens 0,3 mm getrennt.
+*Focus* sets which rule saves stitches:
 
-Die Schritte, in dieser Reihenfolge:
+- **Both** (default): thread density, short-stitch clusters and, on leather, perforation.
+- **Thread density**: only too much thread per area. Covered fill rows are thinned out.
+- **Penetrations**: only needle penetrations (short stitches, perforation); in addition,
+  penetrations from different layers landing in the same hole are moved apart by at most 0.3 mm.
 
-1. **Aufräumen** (`src/correct/shorts.ts`): Stiche ohne Bewegung fallen weg, Ketten winziger Stiche
-   werden zusammengefasst, solange kein Punkt mehr als 0,3 mm abweicht.
-2. **Füllung unter der Kante zurückziehen** (`src/correct/pullback.ts`): Reicht eine Füllung weit
-   unter eine später gestickte Satinkante, wird das Reihenende auf die übliche Überlappung von etwa
-   30 % der Kantenbreite zurückgenommen (unter einer Füllung 0,6 mm). Die Kante verdeckt das
-   Reihenende ohnehin, gespart wird doppelte Lage am Rand.
-3. **Kurzstiche in Satinkurven** (`src/correct/satinShort.ts`): Auf der Innenseite enger Kurven
-   drängen sich die Einstiche. Wie in Digitalisierprogrammen endet dort jeder zweite Stich ein
-   Viertel der Säulenbreite vor der Kante; die Kontur bleibt geschlossen.
-4. **Verdeckte Reihen ausdünnen** (nur Fadendichte, `src/correct/thin.ts`): Füllreihen, die
-   vollständig unter mindestens einer vollen späteren Lage liegen, werden paarweise entfernt. Man
-   sieht sie nicht, Streifen entstehen also nicht.
-5. **Gleichmäßig neu verteilen** (`src/correct/respace.ts`): Ist eine Füllung oder ein Satin danach
-   noch zu dicht, wird die ganze Bahn mit gleichmäßig größerem Reihen- bzw. Stichabstand neu
-   aufgebaut statt einzelne Reihen herauszunehmen. Kontur, Stichversatz und Bahnrichtung bleiben,
-   und der Abstand wird nie größer als der für das Material empfohlene (Webware 40er: 0,45 mm).
-   Schmale Details und schon ungleichmäßige Bahnen bleiben unverändert.
-6. **Einstiche trennen** (`src/correct/nudge.ts`): bei Fokus Lochdichte und bei Perforation auf
-   Leder; verschoben werden nur Einstiche zwischen zwei ausreichend langen Stichen.
+The steps, in this order:
 
-Vernähstiche, Sprünge, Schnitte und Farbwechsel bleiben unverändert.
+1. **Clean up** (`src/correct/shorts.ts`): stitches without movement are dropped, chains of tiny
+   stitches are merged as long as no point moves more than 0.3 mm.
+2. **Pull fills back under borders** (`src/correct/pullback.ts`): if a fill reaches far under a
+   satin border stitched later, the row end is pulled back to the usual overlap of about 30 % of the
+   border width (0.6 mm under a fill). The border covers the row end anyway; the double layer at the
+   edge is saved.
+3. **Short stitches in satin curves** (`src/correct/satinShort.ts`): on the inside of tight curves
+   the penetrations crowd together. As in digitizing software, every other stitch ends a quarter of
+   the column width before the edge; the outline stays closed.
+4. **Thin out covered rows** (thread density only, `src/correct/thin.ts`): fill rows lying entirely
+   under at least one full later layer are removed in pairs. They are not visible, so no stripes
+   appear.
+5. **Respace evenly** (`src/correct/respace.ts`): if a fill or satin is still too dense, the whole
+   run is rebuilt with evenly wider row or stitch spacing instead of removing single rows. Outline,
+   stitch offset and direction stay, and the spacing never exceeds the one recommended for the
+   material (woven, 40 wt: 0.45 mm). Narrow details and already uneven runs stay unchanged.
+6. **Separate penetrations** (`src/correct/nudge.ts`): with focus on penetrations and for
+   perforation on leather; only penetrations between two long enough stitches are moved.
 
-**Was in Ruhe bleibt:** praxisübliche und quittierte Zonen (siehe Validierung) fasst die Korrektur
-nicht an; sie sorgt nur dafür, dass sie nicht schlimmer werden. Was danach noch übrig ist, meldet
-das Panel als „von Hand prüfen“: meist mehrere gestapelte Lagen, also eine Designentscheidung.
+Tie stitches, jumps, trims and color changes stay unchanged.
 
-### Von Hand
+**What is left alone:** zones that are normal in practice or acknowledged (see Validation) are not
+touched; the correction only makes sure they don't get worse. Whatever remains afterwards is reported
+by the panel as "check by hand": usually several stacked layers, i.e. a design decision.
 
-*Stiche bearbeiten* (`e`) blendet Stichplan und, ab etwa 6 px/mm Zoom, die Einstiche ein.
+![Correction panel with goal, focus and result](public/guide/correct-en.jpg)
 
-- Klick wählt einen Einstich, Umschalt+Klick erweitert, Umschalt+Ziehen wählt ein Rechteck,
-  Strg+A alles. Klick ins Leere hebt die Auswahl auf, Ziehen im Leeren verschiebt die Ansicht.
-- Gewählte Einstiche ziehen oder mit den Pfeiltasten verschieben (0,1 mm, mit Umschalt 0,5 mm).
-- Entf / Rücktaste löscht; die Nachbarn werden durch einen Stich verbunden.
-- *Ausdünnen* entfernt 25, 33 oder 50 % der Zyklen in Füllungen und Zickzacks, die überwiegend in
-  der Auswahl liegen.
+### By hand
 
-### Vergleich
+*Edit stitches* (`e`) shows the stitch plan and, from about 6 px/mm zoom, the penetrations.
 
-*Mit Original vergleichen* (`c`, sobald die Datei geändert wurde) teilt die Ansicht: links das
-Original, rechts die aktuelle Fassung, jeweils mit eigener Heatmap, Markierungen und Stichplan. Die
-Trennlinie lässt sich ziehen, Zoom und Verschieben gelten für beide Seiten, der Tooltip zeigt die
-Werte der Seite unter dem Zeiger. Darunter stehen Stiche, Garnlänge, kritische und Vorsicht-Fläche
-und maximale Dichte beider Fassungen nebeneinander.
+- Click selects a penetration, Shift+click extends, Shift+drag selects a rectangle, Ctrl+A selects
+  all. Clicking empty space clears the selection, dragging in empty space pans the view.
+- Drag selected penetrations or move them with the arrow keys (0.1 mm, with Shift 0.5 mm).
+- Delete / Backspace removes them; the neighbors are joined by one stitch.
+- *Thin out* removes 25, 33 or 50 % of the cycles in fills and zigzags that lie mostly inside the
+  selection.
 
-### Speichern
+### Compare
 
-*Als DST* / *Als PES* schreibt das aktuelle Muster (`src/writers/`). Nach einer Änderung heißt die
-Datei `name-corrected.dst`. Gespeichert werden nur Stiche und Farben: PE-Design-Objekte und
-Rahmeneinstellungen des Originals gehen verloren.
+*Compare with original* (`c`, once the file has been changed) splits the view: the original on the
+left, the current version on the right, each with its own heatmap, markings and stitch plan. The
+divider can be dragged, zoom and pan apply to both sides, and the tooltip shows the values of the
+side under the pointer. Below, stitches, thread length, critical and caution area and max density of
+both versions are shown side by side.
 
-- **DST:** Ein Schnitt wird als Folge von 3 Sprüngen geschrieben, aber nur, wenn die Sprungfolge danach
-  nicht schon lang genug ist. Schnitte wachsen deshalb beim wiederholten Speichern nicht (anders als
-  bei pyembroidery). Ungetrimmte Sprungfolgen, die sonst als Schnitt gelesen würden, werden
-  zusammengefasst. Lange Stiche werden in Sprünge plus einen Stich zerlegt (keine zusätzlichen
-  Einstiche). Sprünge über 36 mm brauchen 3 oder mehr Datensätze und werden beim Lesen zum Schnitt;
-  das ist eine Eigenschaft des Formats. DST enthält keine Farben.
-- **PES:** Version 1 mit CEmbOne/CSewSeg-Objekt für Designsoftware und PEC-Block mit
-  Vorschaubildern für Maschinen. Nur Sprünge nach einem Schnitt tragen das Schnitt-Flag (pyembroidery
-  markiert jeden Sprung). Farben behalten ihren PEC-Paletten-Platz; Farben aus DST bekommen den
-  nächstgelegenen.
-- Die Tests (`tests/writers.test.ts`) prüfen Lesen → Schreiben → Lesen für DST, PES und beide
-  Konvertierungen auf Datensatz-Gleichheit. Die geschriebenen Dateien wurden außerdem mit
-  pyembroidery 1.5.1 gegengelesen.
+![Compare view: original left, corrected right, with the numbers of both](public/guide/compare-en.jpg)
 
-## Bild → Stickdatei
+### Saving
 
-Der Modus *Bild* (Taste 3) macht aus einem Bild eine Stickdatei, in zwei Schritten, die beide in einem
-Web Worker laufen (`src/digitize/worker.ts`). Jede Änderung startet eine neue Rechnung; was während einer
-Rechnung geändert wird, wird danach mit den neuesten Einstellungen gerechnet. Bild, Farbänderungen und
-Pinselstriche bleiben im Browser gespeichert (IndexedDB, `src/storage/imageStore.ts`).
+*As DST* / *As PES* writes the current pattern (`src/writers/`). After a change the file is called
+`name-corrected.dst`. Only stitches and colors are saved: PE-Design objects and hoop settings of the
+original are lost.
 
-Die Verfahren sind nach einer Recherche in Fachliteratur, Herstellerhandbüchern und den Quelltexten
-freier Stickprogramme gewählt. Ink/Stitch und PEmbroider stehen unter GPL; von dort sind nur die
-Verfahren übernommen und neu geschrieben, kein Code.
+- **DST:** a trim is written as a sequence of 3 jumps, but only if the following jump sequence is not
+  already long enough. That way trims don't grow on repeated saves (unlike pyembroidery). Untrimmed
+  jump sequences that would otherwise read as a trim are merged. Long stitches are split into jumps
+  plus one stitch (no extra penetrations). Jumps over 36 mm need 3 or more records and read back as a
+  trim; that is a property of the format. DST has no colors.
+- **PES:** version 1 with a CEmbOne/CSewSeg object for design software and a PEC block with preview
+  images for machines. Only jumps after a trim carry the trim flag (pyembroidery flags every jump).
+  Colors keep their PEC palette slot; colors from DST get the nearest one.
+- The tests (`tests/writers.test.ts`) check read → write → read for DST, PES and both conversions for
+  record equality. The written files were also read back with pyembroidery 1.5.1.
 
-### Vorbereitung (`src/image/`)
+## Image to embroidery
 
-1. **Arbeitsauflösung:** 0,1 mm pro Pixel (bei Motiven über 120 mm gröber, höchstens etwa 1200 Pixel),
-   Flächenmittel beim Verkleinern, Transparenz bleibt erhalten.
-2. **Vereinfachen** (nur Fotos, beim Laden automatisch erkannt: decken die 16 häufigsten Farben unter
-   85 % der Pixel ab, ist es ein Foto): bilateraler Filter in CIELAB (Tomasi & Manduchi 1998), getrennt
-   nach Zeilen und Spalten und mehrfach angewendet wie in Winnemöller u. a. 2006. Flächen werden glatt,
-   Kanten bleiben.
-3. **Farbreduktion:** gewichtetes k-Means auf einem Lab-Histogramm, das nach Celebi (*Improving the
-   performance of k-means for color quantization*, 2011) bei kleinen Farbzahlen am besten abschneidet
-   und kleine, deutliche Flächen (Augen) erhält, wo Median Cut und Wu sie verlieren. Jedes Pixel zählt
-   mehr, je stärker es sich von seiner Umgebung abhebt und je bunter es ist. Fast gleiche Farben
-   (CIEDE2000 unter 6) werden zusammengelegt, winzige unauffällige (unter 0,4 % der Fläche und keiner
-   Farbe ferner als 22) fallen weg.
-4. **Garnfarben:** nächstes Garn der Brother-Palette nach CIEDE2000 (Sharma, Wu & Dalal 2005, an deren
-   Prüfdaten getestet); Farben, die auf dasselbe Garn fallen, werden eins. Die Farbliste zeigt ≠, wenn
-   kein Garn nahe liegt (ΔE über 10).
-5. **Änderungen von Hand:** pro Farbe anderes Garn, zusammenlegen, weglassen; Pinselstriche (malen,
-   radieren) werden vor und nach dem Aufräumen eingetragen, so dass sie gelten.
-6. **Aufräumen:** 3×3-Mehrheitsfilter; Säume der Kantenglättung (höchstens 0,5 mm breit, Farbe zwischen
-   den beiden Nachbarn) gehen an die Nachbarn; der Hintergrund (die Farbe von mindestens 60 % des Rands
-   und drei Ecken) fällt weg, soweit er mit dem Rand verbunden ist; Flächen unter *Kleinste Fläche* gehen
-   in den Nachbarn mit der längsten gemeinsamen Grenze auf (wie im Goldman-Patent US 6,836,695 und bei
-   Wilcom).
+Image mode (key `3`) turns a picture into an embroidery file in two steps, both in a Web Worker
+(`src/digitize/worker.ts`). Every change starts a new run; whatever changes during a run is computed
+afterwards with the latest settings. The picture, color edits and brush strokes stay in the browser
+(IndexedDB, `src/storage/imageStore.ts`). The canvas shows the *Original*, the *Prepared* image or the
+*Stitches*.
 
-### Stiche (`src/digitize/`)
+The methods were chosen after research into papers, vendor manuals and the source of open-source
+digitizers. Ink/Stitch and PEmbroider are GPL; only their methods were re-implemented, no code was
+copied.
 
-Jede zusammenhängende Fläche wird ein Objekt. Statt Konturen nachzuzeichnen, arbeitet alles auf einem
-vorzeichenbehafteten Abstandsfeld pro Fläche (exakte Distanztransformation nach Felzenszwalb &
-Huttenlocher 2012, leicht geglättet): Seine Nulllinie liegt mittig zwischen Pixeln, also teilen sich
-Nachbarflächen dieselbe Grenze. Füllreihen enden dort, Satinkanten werden dort gefunden, die Unterlage
-liegt auf einer Höhenlinie innerhalb.
+### Preparation (`src/image/`)
 
-- **Art:** Das Skelett (Ausdünnen in der Reihenfolge des Abstands, Seitenäste kürzer als 1,5 Radien
-  beschnitten) liefert die Breiten. Unter 1 mm (Frottee 1,5 mm): Steppstich. Bis *Satin bis Breite*
-  (7 mm), gleichmäßig breit (breiteste Stelle innerhalb drei Standardabweichungen, wie im
-  Goldman-Patent), lang gegenüber der Breite und mit wenigen Verzweigungen: Satin. Sonst Füllung.
-  Erzeugter Satin wird nachgemessen: Liegt irgendwo mehr als das 2,4-fache seiner Solldichte (enge
-  Kurven fächern auf) oder bleiben mehr als 5 % der Fläche frei (Säulen, die von einer Mitte
-  ausstrahlen), wird gefüllt.
-- **Füllung (Tatami):** Reihen auf einem Raster, das am Ursprung des Motivs ausgerichtet ist, Einstiche
-  versetzt um je ein Viertel der Stichlänge (4 mm) wie Ink/Stitch, so dass Nachbarflächen nahtlos
-  anschließen. Die Reihen werden in Abschnitte zerlegt, die sich in einem Zug hin und her sticken lassen
-  (Boustrophedon-Zerlegung, Choset 2000). Ohne festen Winkel nimmt jede Fläche von 16 Winkeln den mit
-  den wenigsten Abschnitten (Goldman-Patent), möglichst 30° anders als berührende Flächen. Unterlage:
-  Reihen um 90° gedreht, dreifacher Abstand, 0,4 mm innerhalb der Kante. Zwischen Abschnitten läuft der
-  Faden auf dem kürzesten Weg innen unter noch nicht gestickten Reihen (wie Ink/Stitchs Underpath); läge
-  er dabei mehr als 2 mm auf schon gestickten Reihen, springt er stattdessen.
-- **Füllrichtung folgt dem Bild** (Standard, `src/digitize/flow.ts`, `src/image/orientation.ts`): Ein
-  Richtungsfeld aus dem Strukturtensor des Originalbilds (Förstner & Gülch 1987, Bigün & Granlund 1987;
-  wie bei kohärenzverstärkender Abstraktion, Weickert 1999, und Coherent Line Drawing, Kang u. a.
-  2007), gewichtet mit der Kohärenz, also der Eindeutigkeit der Richtung: Fell, Haare und Striche
-  geben die Richtung vor. Der eigene Umriss einer Fläche zählt nicht (erst ab 1,2 mm innen). In
-  einfarbigen Flächen gibt die Mittellinie die Richtung, sofern die Form gestreckt ist (ab drei Breiten
-  Länge voll). Ist die Richtung in einer Fläche fast einheitlich, werden die Reihen gerade in genau
-  dieser Richtung gelegt; sonst gebogen als gleichmäßig verteilte Stromlinien des Felds (Jobard &
-  Lefer 1997): Jede Reihe folgt dem Feld, neue Reihen beginnen einen Reihenabstand neben bestehenden,
-  eine Reihe endet, wo sie einer anderen näher als einen halben Abstand kommt. Reihen werden hin und
-  her verbunden, Abstände zwischen Gruppen wie bei der geraden Füllung überbrückt. Bevor gestickt wird,
-  werden die Reihen gemessen; wo sie sich häufen (über das 2,2-fache der Solldichte) oder Lücken
-  lassen, wird gerade gefüllt. Eine Recherche fand kein Stickprogramm, das die Stichrichtung
-  automatisch aus der Struktur des Bildes ableitet (einige richten Füllungen an der Längsachse einer
-  Form aus); der Forschungsprototyp von Liu u. a. (Eurographics 2023) braucht von Hand vorgegebene
-  Richtungen. Im Feld *Füllrichtung* lässt sie sich gegen gerade Reihen oder einen
-  festen Winkel tauschen.
-- **Satin:** Die Kanten werden von der Mittellinie aus senkrecht bis zum Rand gemessen (die
-  „Stroke-Normalen“ des Goldman-Patents). Abstand 0,4 mm zwischen Einstichen derselben Seite, gemessen an
-  der Seite, die weiter vorrückt; auf der Innenseite von Kurven rückt jeder zu nahe Einstich (unter
-  0,25 mm) 15 % der Breite nach innen, Zugausgleich nach Stoff (Webware 0,2 mm, Strick 0,35, Frottee 0,4
-  pro Seite), Stiche über 7 mm werden geteilt. Ein Netz aus Säulen wird in einem Zug gestickt: jeder Ast
-  hin als Unterlage (Mittelnaht, ab 4 mm Breite Zickzack) und zurück als Satin, wie Ink/Stitchs
-  Auto-Satin. An Knoten deckt die erste Säule ab, die anderen reichen 0,3 mm hinein.
-- **Reihenfolge:** Farben nach Fläche, die größte zuerst; in einer Farbe Füllungen vor Satin und Linien,
-  jeweils das nächste Objekt. Objekte, die früher gestickt werden, reichen 0,2 mm unter spätere
-  Nachbarn. Bis 1 mm Abstand ein Stich, bis 3 mm ein Sprung, darüber Vernähen (0, 0,5, 1, 0,5, 0 mm
-  entlang des Fadens), Schnitt, Sprung und Anfangsvernähen; ebenso bei Farbwechseln.
-- **Standardwerte** nach Material (`digitizeDefaults`): Abstand aus der Empfehlung des Profils
-  (Webware 40 wt 0,40 mm zwischen benachbarten Reihen, wie in der Beispielkatze gemessen), Zugausgleich
-  nach Stoff (Wilcom-Tabelle). Im Panel *Stiche* lässt sich alles überschreiben.
+1. **Working resolution:** 0.1 mm per pixel (coarser for designs over 120 mm, at most about 1200
+   pixels), area averaging when shrinking, transparency kept.
+2. **Simplify** (photos only, detected on load: if the 16 most frequent colors cover less than 85 %
+   of the pixels, it is a photo): bilateral filter in CIELAB (Tomasi & Manduchi 1998), separated into
+   rows and columns and iterated as in Winnemöller et al. 2006. Areas become flat, edges stay.
+3. **Color reduction:** weighted k-means on a Lab histogram, which does best at small color counts
+   (Celebi, *Improving the performance of k-means for color quantization*, 2011) and keeps small,
+   distinct areas such as eyes, where median cut and Wu lose them. A pixel weighs more the more it
+   stands out from its surroundings and the more saturated it is. Nearly equal colors (CIEDE2000 under
+   6) are merged, tiny inconspicuous ones (under 0.4 % of the area and no further than 22 from any
+   other color) are dropped.
+4. **Thread colors:** the nearest thread of the Brother palette by CIEDE2000 (Sharma, Wu & Dalal 2005,
+   tested against their reference data); colors that land on the same thread become one. The color
+   list shows ≠ when no thread is close (ΔE over 10).
+5. **Edits by hand:** per color another thread, merge into another color, or leave out; brush strokes
+   (paint, erase) are applied before and after the clean-up, so they hold.
+6. **Clean-up:** 3×3 majority filter; anti-aliasing seams (at most 0.5 mm wide, color between the two
+   neighbors) go to the neighbors; the background (the color of at least 60 % of the border and three
+   corners) is dropped where it is connected to the border; areas under *Smallest area* merge into the
+   neighbor with the longest shared border (as in Goldman's patent US 6,836,695 and in Wilcom).
 
-### Bild mit KI vorbereiten
+### Stitches (`src/digitize/`)
 
-heatstitch baut keine KI ein. Unter dem Bildfeld schlägt *Bild mit KI vorbereiten* stattdessen einen
-Ablauf vor: das Bild im eigenen KI-Chat hochladen, der Bilder bearbeiten kann, einen fertigen Prompt
-einfügen, das Ergebnis hier laden. Der Prompt richtet sich nach Breite und Farbanzahl unter
-*Vorbereitung*: flache Grafik mit höchstens so vielen Farben, keine Verläufe und Texturen, nichts
-schmaler als 1 mm im Stick (als Anteil der Bildbreite), weißer Hintergrund. Ein Hinweis sagt, dass das
-Bild dabei an den Anbieter der KI geht.
+Every connected area becomes one object. Instead of tracing outlines, everything works on a signed
+distance field per area (exact distance transform after Felzenszwalb & Huttenlocher 2012, slightly
+smoothed). Its zero line lies halfway between pixels, so neighboring areas share the same border:
+fill rows end there, satin edges are found there, underlay lies on a contour inside.
 
-### Lebendiges Garn
+- **Kind:** the skeleton (thinning in order of distance, side branches shorter than 1.5 radii pruned)
+  gives the widths. Under 1 mm (terry 1.5 mm): running stitch. Up to *Satin up to width* (7 mm), even
+  in width (widest point within three standard deviations, as in Goldman's patent), long compared to
+  its width and with few branches: satin. Otherwise fill. Generated satin is measured: if it reaches
+  more than 2.4 times its nominal density anywhere (tight curves fan out) or leaves more than 5 % of
+  the area bare (columns radiating from a center), the area is filled instead.
+- **Fill (tatami):** rows on a lattice aligned to the design's origin, penetrations offset by a quarter
+  of the stitch length (4 mm) as in Ink/Stitch, so neighboring areas join seamlessly. The rows are
+  split into sections that can be sewn back and forth in one go (boustrophedon decomposition, Choset
+  2000). Without a fixed angle, each area takes the one of 16 angles with the fewest sections
+  (Goldman's patent), preferably 30° apart from touching areas. Underlay: rows turned by 90°, three
+  times the spacing, 0.4 mm inside the edge. Between sections the thread travels the shortest way
+  inside, under rows not sewn yet (like Ink/Stitch's underpath); where it would lie on sewn rows for
+  more than 2 mm, it jumps instead.
+- **Fill rows follow the image** (default; `src/digitize/flow.ts`, `src/image/orientation.ts`): a
+  direction field from the structure tensor of the original picture (Förstner & Gülch 1987, Bigün &
+  Granlund 1987; as in coherence-enhancing abstraction, Weickert 1999, and Coherent Line Drawing, Kang
+  et al. 2007), weighted by coherence, i.e. how clear the direction is: fur, hair and strokes set the
+  direction. An area's own outline does not count (only from 1.2 mm inside). In flat areas the
+  centerline sets the direction if the shape is elongated (fully from three widths of length). If the
+  direction is nearly uniform in an area, the rows are laid straight in exactly that direction;
+  otherwise they curve as evenly spaced streamlines of the field (Jobard & Lefer 1997): each row
+  follows the field, new rows start one spacing beside existing ones, a row ends where it comes closer
+  than half a spacing to another. Rows are joined back and forth, gaps between groups are bridged as
+  in the straight fill. Before sewing, the rows are measured; where they crowd (over 2.2 times the
+  nominal density) or leave gaps, the straight fill is used. Research found no embroidery program that
+  derives the stitch direction from the picture's own structure (some align fills to a shape's long
+  axis); the research prototype of Liu et al. (Eurographics 2023) needs directions given by hand.
+  *Fill direction* swaps it for straight rows or a fixed angle.
+- **Satin:** the edges are measured from the centerline at right angles to the border (the "stroke
+  normals" of Goldman's patent). 0.4 mm between penetrations on the same side, measured on the side
+  that advances more; on the inside of curves every penetration that comes too close (under 0.25 mm)
+  moves 15 % of the width inwards. Pull compensation by fabric (woven 0.2 mm, knit 0.35, terry 0.4 per
+  side), stitches over 7 mm are split. A network of columns is sewn in one go: each branch out as
+  underlay (center walk, zigzag from 4 mm width) and back as satin, like Ink/Stitch's auto-satin. At
+  junctions the first column covers, the others reach 0.3 mm into it.
+- **Order:** colors by area, the largest first; within a color fills before satin and lines, each time
+  the nearest object. Objects sewn earlier reach 0.2 mm under later neighbors. Up to 1 mm apart a
+  stitch, up to 3 mm a jump, beyond that a tie-off (0, 0.5, 1, 0.5, 0 mm along the thread), trim, jump
+  and tie-in; the same at color changes.
+- **Defaults** by material (`digitizeDefaults`): spacing from the profile's recommendation (woven
+  40 wt: 0.40 mm between neighboring rows, as measured in the example cat), pull compensation by
+  fabric (Wilcom table). Everything can be overridden in the *Stitches* panel.
 
-In der realistischen Fadenansicht folgt das Licht dem Mauszeiger oder der Neigung des Handys
-(`src/render/light.ts`; auf iPhones nach einmaliger Erlaubnis). Garn glänzt quer zu seinen Fasern, also
-leuchten Satinsäulen und Füllreihen je nach Stichrichtung auf oder werden dunkel, wie beim Drehen eines
-gestickten Aufnähers in der Hand; die Schatten wandern mit. Beim ersten umgewandelten Bild schaltet der
-Modus Bild die realistische Ansicht ein und lässt das Licht einmal um das Motiv laufen, bei jedem neuen
-Bild läuft es wieder (nicht bei *Bewegung reduzieren*). *✦ Wie gestickt* auf der Leinwand zeigt es jederzeit.
-Eine Recherche bei Wilcom, Hatch, PE-Design, Embird, Ink/Stitch, mySewnet und Online-Konvertern fand nur
-feste Lichteinstellungen in Dialogen; Licht, das man mit Maus oder Neigung bewegt, bietet keines davon.
-Die Einstellung *Licht folgt Maus und Neigung* unter *Anzeige* gilt in allen Modi.
+The generated stitches go through the same check as loaded files. *Take over as embroidery file* adds
+them to the file list as a PES file, where they can be corrected and saved as DST or PES. For
+comparison on woven fabric with 40 wt:
 
-Die erzeugten Stiche laufen durch dieselbe Prüfung wie geladene Dateien. *Als Stickdatei übernehmen*
-legt sie als PES in die Dateiliste. Zum Vergleich auf Webware mit 40 wt: Das Foto einer Katze (80 × 107 mm,
-5 Farben, 62 Objekte, 18 der 32 Füllungen gebogen) ergibt 10 Vorsicht- und 3 kritische Zonen und 157
-Fadenschnitte bei 17 800 Stichen (mit geraden Reihen 16 und 3 Zonen), die professionell digitalisierte
-Beispielkatze 15 und 2 Zonen (höchstens 9,9 mm/mm²) und 89 Schnitte bei 9 200 Stichen. Die Befunde liegen meist
-dort, wo Satin den Rand einer Füllung überlappt; die Korrektur im Modus Dichte kann sie danach angehen.
+| Design | Stitches | Caution zones | Critical zones | Trims |
+|---|---|---|---|---|
+| Cat photo (80 × 107 mm, 5 colors), rows follow the image (18 of 32 fills curved) | 17,800 | 10 | 3 | 157 |
+| Same photo, straight rows | 16,400 | 16 | 3 | 131 |
+| Example cat (professionally digitized) | 9,200 | 15 | 2 | 89 |
 
-**Grenzen:** Fotos werden flächig (posterisiert) gestickt, nicht schattiert wie bei Photo-Stitch-
-Verfahren mit veränderlicher Dichte. Breite Formen mit schmalen Armen werden ganz gefüllt, nicht in
-Füllung und Satin zerlegt. Die Farbliste kennt nur die Brother-Palette.
+The findings mostly sit where satin overlaps the edge of a fill; the correction in Density mode can
+take them on afterwards.
 
-## Entwicklung
+### Prepare the image with AI
+
+heatstitch has no AI built in. Below the image box, *Prepare the image with AI* suggests a workflow
+instead: upload the picture to your own AI chat that can edit images, paste a ready-made prompt, load
+the result here. The prompt follows the width and color count under *Preparation*: a flat graphic with
+at most that many colors, no gradients or textures, nothing narrower than 1 mm in the embroidery (as a
+share of the picture's width), white background. A note says that the picture goes to the AI's
+provider when you do this.
+
+### Living thread
+
+In the realistic thread view the light follows the pointer or the tilt of a phone
+(`src/render/light.ts`; on iPhones after a one-time permission). Thread shines across its fibers, so
+satin columns and fill rows light up or darken by their stitch direction, like turning an embroidered
+patch in your hand, and the shadows move along. On the first converted picture, Image mode switches to
+the realistic view and sweeps the light once around the design; every new picture does it again
+(not with the system setting to reduce motion). *✦ As sewn* on the canvas shows it at any time. Research into Wilcom,
+Hatch, PE-Design, Embird, Ink/Stitch, mySewnet and online converters found only fixed light settings in
+dialogs. *Light follows pointer and tilt* under *Display* switches it off in all modes.
+
+**Limits:** photos are sewn as flat areas (posterized), not shaded with variable density as in
+photo-stitch methods. Wide shapes with narrow arms are filled as a whole instead of being split into
+fill and satin. The color list only offers the Brother palette.
+
+## Development
 
 ```sh
 npm install
-npm run dev       # Dev-Server
-npm test          # Unit-Tests (Vitest)
-npm run build     # Typecheck + Produktionsbuild nach dist/
-npm run preview   # Build lokal ansehen: http://localhost:4173/heatstitch/
+npm run dev       # dev server
+npm test          # unit tests (Vitest)
+npm run build     # typecheck + production build into dist/
+npm run preview   # view the build locally: http://localhost:4173/heatstitch/
 ```
 
-Die Tests erzeugen ihre DST/PES-Fixtures synthetisch (`tests/helpers/encode.ts`) und prüfen u.a.,
-dass die Summe des Rasters exakt der Gesamtgarnlänge bzw. Stichzahl entspricht.
+The tests generate their DST/PES fixtures synthetically (`tests/helpers/encode.ts`) and check, among
+other things, that the grid sums exactly to the total thread length or stitch count.
 
-## Beispieldateien
+## Example files
 
-`public/examples/` enthält echte Stickdateien zum Ausprobieren, z. B. `cat-60mm.pes` (Katze, 60 mm, PES v6).
-Der Knopf "Beispiel laden" unter dem Dateifeld lädt sie direkt in die App. `image-example.svg` ist das
-Beispielbild des Modus Bild (Füllflächen, Satinbreiten, feine Linien).
+`public/examples/` holds real embroidery files to try out, e.g. `cat-60mm.pes` (cat, 60 mm, PES v6).
+The *Load example* dropdown under the file field loads the cat, the overlapping circles and the
+confetti design straight into the app. `image-example.svg` is the example picture of Image mode
+(fills, satin widths, fine lines), loaded by *Load example image* in that mode.
 
-`public/examples/demos/` enthält kleine synthetische Demos für die Anleitung, jede mit einem Befund:
-`overlap.pes` (gestapelte Füllungen), `letters.pes` (Füllung unter Satin), `sun.dst` (Kurzstiche auf
-Strick), `leather-patch.dst` (Perforation auf Leder) und `confetti.pes` (lange Sprünge ohne Schnitt,
-kurze mit Schnitt). Sie entstehen mit den App-eigenen Writern aus
-`tests/helpers/demos.ts`; `tests/demos.test.ts` prüft, dass sie aktuell sind und den beschriebenen
-Befund zeigen. Nach Änderungen an Designs oder Writern: `UPDATE_DEMOS=1 npm test`. Die Bilder der
-Anleitung liegen in `public/guide/` und werden nicht vorab gecacht.
+`public/examples/demos/` holds small synthetic demos for the guide, each with one finding:
+`overlap.pes` (stacked fills), `letters.pes` (fill under satin), `sun.dst` (short stitches on knit),
+`leather-patch.dst` (perforation on leather) and `confetti.pes` (long jumps without trims, short ones
+with trims). They are built with the app's own writers from `tests/helpers/demos.ts`;
+`tests/demos.test.ts` checks that they are up to date and show the described finding. After changing
+designs or writers: `UPDATE_DEMOS=1 npm test`. The guide images live in `public/guide/` and are not
+precached.
 
 ## Deployment
 
-`.github/workflows/deploy.yml` testet und baut jeden Push; Pushes auf `main` werden auf
-GitHub Pages veröffentlicht. Einmalig nötig: *Settings → Pages → Source: GitHub Actions*.
+`.github/workflows/deploy.yml` tests and builds every push. The site is served from the `gh-pages`
+branch: pushes to `main` go to its root at <https://pfedan.github.io/heatstitch/>, and every pull
+request gets a preview under `pr-preview/pr-N/` (linked in a PR comment) that is removed again when
+the PR closes. Previews only run for branches in this repository, not for forks. One-time setup:
+*Settings → Pages → Source: Deploy from a branch*, `gh-pages`, `/ (root)`.
 
-## Hinweise zu den Formaten
+## Format notes
 
-- **DST** kennt keinen expliziten Fadenschnitt. Wie bei pyembroidery gilt eine Folge von
-  mindestens 3 Sprüngen als Schnitt (`DST_TRIM_JUMP_COUNT` in `src/parsers/dst.ts`). DST enthält
-  außerdem keine Garnfarben; die Farbblöcke bekommen Ersatzfarben.
-- **PES**: Farben kommen aus der PEC-Palette. Die RGB-Garnlisten neuerer PES-Versionen werden noch nicht gelesen.
-- Die Validierungsschwellen sind aus Digitalisier-Richtwerten hergeleitet und an synthetischen Aufbauten kalibriert; ein Abgleich mit echten Probestickungen steht noch aus.
+- **DST** has no explicit trim. As in pyembroidery, a sequence of at least 3 jumps counts as a trim
+  (`DST_TRIM_JUMP_COUNT` in `src/parsers/dst.ts`). DST also has no thread colors; color blocks get
+  substitute colors.
+- **PES:** colors come from the PEC palette. The RGB thread lists of newer PES versions are not read
+  yet.
+- The validation thresholds are derived from digitizing guidelines and calibrated on synthetic
+  builds; a comparison with real test stitch-outs is still pending.
 
-## Aufbau
+## Structure
 
 ```
-src/parsers/   DST- und PES-Parser, PEC-Palette
-src/model/     Pattern-Datenmodell, Garnsegmente, Statistik, Bearbeitungsfunktionen,
-               Ablauf (Farbblöcke, Sticharten, Sprünge, Marker), Sprünge schneiden/mitziehen
-src/density/   Dichteraster, Gauss-Blur, Web Worker
-src/validation/  Messung, Profile, Stufen, Satin-Erkennung, Kurzstich- und Perforationsregel, Zonen
-src/correct/   Automatische Korrektur: Rückzug unter Kanten, Satin-Kurzstiche, Neuverteilen, Ausdünnen, Einstiche trennen
-src/writers/   DST- und PES-Writer (PEC-Block, Vorschaubilder)
-src/image/     Bildvorbereitung: Farbräume, CIEDE2000, Filter, Farbreduktion, Distanztransformation, Aufräumen
-src/digitize/  Stiche aus Bildern: Abstandsfelder, Skelett, Füllung, Satin, Steppstich, Reihenfolge, Worker
-src/render/    Viewport, Farbskala, Heatmap, Stichplan, Legende, Ablauf-Darstellung (Färbung, Marker, Nadel)
-src/ui/        Dateiliste, Validierung, Korrektur-Panel, Stich-Editor, Controls, Statistik, Tooltip, Export,
-               Farben-Liste, Sprung-Liste, Player, Modus Bild, Garnfarben-Auswahl
-src/i18n/      Übersetzungen DE/EN
-public/examples/  Beispiel-Stickdateien (per Knopf ladbar)
-docs.html      Kurzanleitung DE/EN (src/docs.ts, src/docs.css)
-public/og-image.jpg, robots.txt, sitemap.xml  Vorschaubild für Social Media, Crawler
+src/parsers/     DST and PES parsers, PEC palette
+src/model/       Pattern data model, thread segments, statistics, edit functions,
+                 sequence (color blocks, stitch types, jumps, markers), trimming/untrimming jumps
+src/density/     Density grid, Gaussian blur, Web Worker
+src/validation/  Measurement, profiles, levels, satin detection, short-stitch and perforation rules, zones
+src/correct/     Automatic correction: pullback under borders, satin short stitches, respacing,
+                 thinning, separating penetrations
+src/writers/     DST and PES writers (PEC block, preview images)
+src/image/       Image preparation: color spaces, CIEDE2000, filters, color reduction, distance
+                 transform, orientation, clean-up
+src/digitize/    Stitches from images: distance fields, skeleton, fill, flow fill, satin, running
+                 stitch, sequencing, Web Worker
+src/render/      Viewport, color scale, heatmap, stitch plan, realistic threads (WebGL), light,
+                 legend, sequence rendering (coloring, markers, needle)
+src/ui/          File list, validation, correction panel, stitch editor, controls, statistics,
+                 tooltip, export, color list, jump list, player, Image mode, thread picker
+src/i18n/        Translations EN/DE
+public/examples/ Example embroidery files (loadable from the dropdown)
+public/guide/    Screenshots for the guide
+docs.html        Short guide EN/DE (src/docs.ts, src/docs.css)
+public/og-image.jpg, robots.txt, sitemap.xml  Social media preview image, crawlers
 ```
+
+## Contributing
+
+Bug reports, example files and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for
+setup, tests, pull request previews and the English/German conventions.
+
+## License
+
+[MIT](LICENSE) © Daniel Pfeffer
